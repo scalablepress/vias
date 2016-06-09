@@ -2,100 +2,65 @@ import _ from 'lodash';
 import objectHash from 'object-hash';
 
 class ViasPromise {
-  constructor(model, method, data, exec) {
+  constructor(model, method, data, shape, exec) {
     this.model = model;
     this.method = method;
     this.data = data;
-    this.exec = exec;
+    this.shape = shape;
+    this._exec = exec;
     this.pending = false;
     this.fulfilled = false;
     this.rejected = false;
     this.callbacks = [];
     this.createdAt = new Date();
+    if (method && data) {
+      this.id = `${this.model.name}_${this.method}_${objectHash(this.data)}`;
+    }
   }
 
   cacheModel() {
     return this.model;
   }
 
+  // Populate actual up to date result using alias(es) stored
   populate() {
+    let cacheModel = this.cacheModel();
     if (!this.value || !this.cacheModel()) {
       return null;
     }
-    let {alias, key, keys, result} = this.value;
-    if (key) {
-      return this.cacheModel().getFromCache(alias, key);
-    }
-
-    if (keys) {
-      let populated = {};
-      for (let key of keys) {
-        populated[key] = this.cacheModel().getFromCache(alias, key);
+    let {alias, result} = this.value;
+    let aliasPaths = this.shape(result);
+    if (!aliasPaths) {
+      return cacheModel.getFromCache(alias, result);
+    } else {
+      let populated = _.cloneDeep(result);
+      for (let path of aliasPaths) {
+        let key = _.get(result, path);
+        _.set(populated, path, cacheModel.getFromCache(alias, key));
       }
       return populated;
     }
-
-    if (result) {
-      return _.map(result, key => this.cacheModel().getFromCache(alias, key));
-    }
   }
 
-  _complyAttr(viasPromise) {
-    this.pending = viasPromise.pending;
-    this.fulfilled = viasPromise.fulfilled;
-    this.rejected = viasPromise.rejected;
-    this.value = viasPromise.value;
-    this.reason = viasPromise.reason;
-  }
-
-  comply(viasPromise) {
-    this._complyAttr(viasPromise);
-    viasPromise.onFinish(() => {
-      this._complyAttr(viasPromise);
-      this._broadcast();
-    });
-  }
-
-  storedPromise(groupId, promiseId) {
-    if (groupId && promiseId) {
-      let storedPromise = this.model.getPromise(groupId, promiseId);
-      if (storedPromise && this.equals(storedPromise)) {
-        return storedPromise;
-      }
-    }
-    return null;
-  }
-
-
-  fulfill(groupId, promiseId) {
+  fulfill() {
     this.pending = true;
 
-    let storedPromise = this.storedPromise(groupId, promiseId);
-    if (storedPromise) {
-      this.comply(storedPromise);
-    } else {
-      if (groupId && promiseId) {
-        this.model.storePromise(groupId, promiseId, this);
-      }
-      this.promise = new Promise(this.exec);
-      this.promise.then((result) => {
-        this.value = result;
-        this.pending = this.rejected = false;
-        this.fulfilled = true;
-        this._broadcast();
-        this.listeners = [];
-      }).catch((err) => {
+    this._exec((err, result, meta) => {
+      if (err) {
         this.reason = err;
         this.pending = this.fulfilled = false;
         this.rejected = true;
-        this._broadcast();
-      });
-    }
-    return this;
-  }
+        return this._broadcast();
+      }
+      this.value = result;
+      this.meta = meta;
+      this.pending = this.rejected = false;
+      this.fulfilled = true;
+      this._broadcast();
+      this.listeners = [];
+    });
 
-  equals(vp) {
-    return vp instanceof ViasPromise && this.model.name === vp.model.name && this.method === vp.method && objectHash(this.data) === objectHash(vp.data);
+    return this;
   }
 
   _broadcast() {
@@ -121,6 +86,10 @@ class ViasPromise {
       callback(this.reason);
     }
     return this;
+  }
+
+  exec(cb) {
+    return this.fulfill().onFinish(cb);
   }
 }
 
