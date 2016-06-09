@@ -1,8 +1,7 @@
 import _ from 'lodash';
 import objectHash from 'object-hash';
 
-import {MODEL_CACHE_UPDATED, MODEL_PROMISE_UPDATED} from './constants';
-
+import {MODEL_CACHE_UPDATED, DOCUMENT_SHAPE, ARRAY_SHAPE} from './constants';
 import ViasPromise from './ViasPromise';
 
 class Model {
@@ -12,7 +11,7 @@ class Model {
     this.promises = {};
     this.aliases = aliases;
     this.listeners = [];
-    this.findResults = {};
+    this.customResults = {};
     this.methods = methods;
 
     this.get = (alias, key, options) => {
@@ -20,40 +19,40 @@ class Model {
         throw new Error('Get method is not implemented');
       }
 
-      let exec = (resolveCb, rejectCb) => {
+      let exec = (cb) => {
         let docFromCache = this.getFromCache(alias, key, (options && options.expiry) || 0);
         if (docFromCache) {
-          return resolveCb({alias, key});
+          return cb(null, {alias, restul: key});
         }
 
         this.methods.get(alias, key, options, (err, doc) => {
           if (err) {
-            rejectCb(err);
+            cb(err);
           }
 
           if (!doc) {
-            return rejectCb('Cannot find document');
+            return cb('Cannot find document');
           }
 
           this.saveToCache(doc, new Date());
-          resolveCb({alias, key});
+          cb(null, {alias, result: key});
           this._broadcast(MODEL_CACHE_UPDATED);
         });
       };
 
-      return new ViasPromise(this, 'get', {alias, key}, exec);
+      return new ViasPromise(this, 'get', {alias, key}, DOCUMENT_SHAPE, exec);
     };
 
-    this.bulk = (alias, keys, options) => {
+    this.bulk = (alias, keys = [], options = {}) => {
       if (!this.methods.bulk) {
         throw new Error('Bulk method is not implemented');
       }
 
-      let exec = (resolveCb, rejectCb) => {
+      let exec = (cb) => {
         let keysToGet = [];
         let result = {};
         for (let key of keys) {
-          let docFromCache = this.getFromCache(alias, key, (options && options.expiry) || 0);
+          let docFromCache = this.getFromCache(alias, key, options.expiry || 0);
           if (docFromCache) {
             result[key] = docFromCache;
           } else {
@@ -62,19 +61,19 @@ class Model {
         }
 
         if (keysToGet.length === 0) {
-          return resolveCb({alias, keys});
+          return cb(null, {alias, result: keys});
         }
 
         this.methods.bulk(alias, keysToGet, options, (err, remoteResult) => {
           if (err) {
-            return rejectCb(err);
+            return cb(err);
           }
           let fetchedAt = new Date();
           for (let doc of remoteResult) {
             this.saveToCache(doc, fetchedAt);
           }
 
-          resolveCb({alias, keys});
+          cb(null, {alias, result: keys});
           this._broadcast(MODEL_CACHE_UPDATED);
         });
       };
@@ -84,92 +83,93 @@ class Model {
         keysObj[key] = true;
       }
 
-      return new ViasPromise(this, 'bulk', {alias, keys: keysObj}, exec);
+      return new ViasPromise(this, 'bulk', {alias, keys: keysObj}, ARRAY_SHAPE, exec);
     };
 
-    this.find = (resource, data, options) => {
-      if (!this.methods.find) {
-        throw new Error('Find method is not implemented');
-      }
-
-      let exec = (resolveCb, rejectCb) => {
-        let resultFromCache = this.getFindResult(resource, data, (options && options.expiry) || 0);
-        if (resultFromCache) {
-          return resolveCb({alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result});
+    if (methods.custom) {
+      for (let methodName in methods.custom) {
+        if (methods.custom.hasOwnProperty(methodName)) {
+          let {shape, action} = methods.custom[methodName];
+          this[methodName] = (data = {}, options = {}) => {
+            let exec = (cb) => {
+              let resultFromCache = this.getCustomResult(methodName, data, options.expiry || 0);
+              if (resultFromCache) {
+                return cb(null, {alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result}, resultFromCache.meta);
+              }
+              action(data, options, (err, result, meta) => {
+                if (err) {
+                  return cb(err);
+                }
+                let fetchedAt = new Date();
+                let alias = _.first(Object.keys(this.aliases));
+                let aliasPath = this.aliases[alias];
+                let aliasResult;
+                let documentPaths = shape(result);
+                if (!documentPaths) {
+                  aliasResult = _.get(result, aliasPath);
+                } else {
+                  aliasResult = _.cloneDeep(result);
+                  for (let path of documentPaths) {
+                    let doc = _.get(result, path);
+                    this.saveToCache(doc, fetchedAt);
+                    _.set(aliasResult, path, _.get(doc, aliasPath));
+                  }
+                }
+                this.saveCustomResult(methodName, data, alias, aliasResult, meta, fetchedAt);
+                cb(null, {alias, result: aliasResult}, meta);
+                this._broadcast(MODEL_CACHE_UPDATED);
+              });
+            };
+            return new ViasPromise(this, methodName, {data}, shape, exec);
+          };
         }
-
-        this.methods.find(resource, data, options, (err, result) => {
-          if (err) {
-            return rejectCb(err);
-          }
-          let fetchedAt = new Date();
-          let alias = _.first(Object.keys(this.aliases));
-          let path = this.aliases[alias];
-          let aliasResult;
-          if (_.isArray(result)) {
-            for (let doc of result) {
-              this.saveToCache(doc, fetchedAt);
-              aliasResult.push(_.get(doc, path));
-            }
-            this.saveFindResult(resource, data, alias, {result}, fetchedAt);
-            resolveCb({alias, result: aliasResult});
-          } else if (_.isPlainObject(result)) {
-            this.saveToCache(result);
-            let key = _.get(result, path);
-            resolveCb({alias, key});
-            this.saveFindResult(resource, data, alias, {key}, fetchedAt);
-          } else {
-            throw new Error('Invalid result');
-          }
-          this._broadcast(MODEL_CACHE_UPDATED);
-        });
-      };
-
-      return new ViasPromise(this, 'find', {resource, data}, exec);
-    };
+      }
+    }
   }
 
-  findCache() {
-    return this.findResults;
+  customCache() {
+    return this.customResults;
   }
 
-  getFindResult(resource, data, expiry) {
-    let cache = this.findCache();
+  getCustomResult(method, data, shape, expiry) {
+    let cache = this.customCache();
     let dataKey = objectHash(data);
-    if (cache[resource] && cache[resource][dataKey]) {
+    if (cache[method] && cache[method][dataKey]) {
       let expired;
-      let cacheRecord = cache[resource][dataKey];
+      let cacheRecord = cache[method][dataKey];
       if (expiry >= 0) {
-        expired = (cacheRecord.fetchedAt).getTime() + expiry < new Date().getTime();
+        expired = cacheRecord.fetchedAt.getTime() + expiry < new Date().getTime();
       } else {
         expired = false;
       }
 
-      if (!expired || process.env.VIAS_ALL_CACHE) {
-        if (cacheRecord.key) {
-          let {alias, key} = cacheRecord;
-          return this.getFromCache(alias, key, expiry);
-        } else {
-          let {alias, result} = cacheRecord;
-          for (let key of result) {
-            if (!this.getFromCache(alias, key, expiry)) {
-              return null;
-            }
+      if (!expired) {
+        // Refetch if any record passed the expiry
+        let aliasPaths = shape(cacheRecord);
+        if (!aliasPaths) {
+          if (!this.getFromCache(cacheRecord.alias, cacheRecord.result, expiry)) {
+            return null;
           }
-          return cacheRecord;
         }
+        for (let path of aliasPaths) {
+          let key = _.get(cacheRecord.result, path);
+          if (!this.getFromCache(cacheRecord.alias, key, expiry)) {
+            return null;
+          }
+        }
+        return cacheRecord;
       }
     }
     return null;
   }
 
-  saveFindResult(resource, data, alias, {result, key}, fetchedAt) {
+  saveCustomResult(method, data, alias, result, meta, fetchedAt) {
     let cache = this.findCache;
     let dataKey = objectHash(data);
-    if (cache[resource]) {
-      cache[resource] = {};
+    if (!cache[method]) {
+      cache[method] = {};
     }
-    cache[resource][dataKey] = {alias, result, key, fetchedAt};
+    cache[method][dataKey] = {alias, result, meta, fetchedAt};
     this.findResults = cache;
   }
 
@@ -220,47 +220,11 @@ class Model {
     }
   }
 
-  promisesStore() {
-    return this.promises;
-  }
-
-  getPromise(groupId, promiseId) {
-    let promises = this.promisesStore();
-    if (promises[groupId] && promises[groupId][promiseId]) {
-      return promises[groupId][promiseId];
-    }
-    return null;
-  }
-
-  storePromise(groupId, id, promise) {
-    let promises = this.promisesStore();
-    if (!promises[groupId]) {
-      promises[groupId] = {};
-    }
-    promises[groupId][id] = promise;
-    this._broadcast(MODEL_PROMISE_UPDATED);
-    promise.onFinish(() => {
-      this._broadcast(MODEL_PROMISE_UPDATED);
-    });
-    this.promises = promises;
-  }
-
-  clearPromise(groupId, promiseId) {
-    if (this.promises[groupId]) {
-      delete this.promises[groupId][promiseId];
-      this._broadcast(MODEL_PROMISE_UPDATED);
-    }
-  }
-
-  clearPromiseGroup(groupId) {
-    delete this.promises[groupId];
-  }
-
   subscribe(listener) {
     this.listeners.push(listener);
   }
 
-  unsubsribe(listener) {
+  unsubscribe(listener) {
     let index = this.listeners.indexOf(listener);
     if (index > -1) {
       this.listeners.splice(index, 1);
