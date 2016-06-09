@@ -31,7 +31,9 @@ export function viasPromiseValue(viasPromises) {
   if (_.isPlainObject(viasPromises)) {
     let result = {};
     for (let key in viasPromises) {
-      result[key] = viasPromises[key].populate();
+      if (viasPromises.hasOwnProperty(key)) {
+        result[key] = viasPromises[key].populate();
+      }
     }
 
     return result;
@@ -55,4 +57,3 @@ export function viasPromiseState(viasPromises) {
 
   throw new Error('Invalid parameters');
 }
-
