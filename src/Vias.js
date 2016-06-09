@@ -3,20 +3,14 @@ import async from 'async';
 import React from 'react';
 
 import ViasPromise from './ViasPromise';
+import {ViasDependPromise} from './Depend';
 
 function vias(options = {}) {
   return function (WrappedComponent) {
     class Vias extends React.Component {
-      static fulfillPromises(props, groupId, onPromiseFinish, cb) {
-        let toFulfill = [];
-        for (let key in props) {
-          if (props[key] instanceof ViasPromise) {
-            toFulfill.push({promise: props[key], promiseId: key});
-          }
-        }
-
-        async.each(toFulfill, function ({promise, promiseId}, eCb) {
-          promise.fulfill(groupId, promiseId).onFinish((err, result) => {
+      static fulfillPromises(promises, onPromiseFinish, cb) {
+        async.each(promises, function (promise, eCb) {
+          promise.exec((err, result) => {
             if (onPromiseFinish) {
               onPromiseFinish(err, promise, result);
             }
@@ -28,7 +22,7 @@ function vias(options = {}) {
       constructor(props) {
         super(props);
         this.models = {};
-        this.viasGroupId = _.uniqueId();
+        this.promises = {};
       }
 
       subscribeModel(model) {
@@ -39,14 +33,50 @@ function vias(options = {}) {
               this.forceUpdate();
             },
           };
-          if (!options.noModelSubscription) {
-            model.subscribe(this.models[model.name].listener);
-          }
         }
       }
 
+      extendPromises(promiseMap) {
+        let promises = {};
+        for (let key in promiseMap) {
+          let promise = promiseMap[key];
+          if (promise instanceof ViasDependPromise) {
+            let dependencies = {};
+            for (let key in promise.dependencies) {
+              let dependency = promise.dependencies[key];
+              if (dependency.id && this.promises[dependency.id]) {
+                dependencies[key] = this.promises[dependency.id];
+              }
+            }
+            promise.update(_.extend({}, promise.dependencies, dependencies));
+          }
+
+          if (promise instanceof ViasPromise && promise.id && this.promises[promise.id]) {
+            promises[key] = this.promises[promise.id];
+          }
+        }
+        return _.extend({}, promiseMap, promises);
+      }
+
       fulfillPromises(props) {
-        Vias.fulfillPromises(props, this.viasGroupId, (err, promise) => {
+        let toFulfill = [];
+        let promisesMap = this.extendPromises(props);
+        for (let key in promisesMap) {
+          if (promisesMap[key] instanceof ViasPromise) {
+            let promise = promisesMap[key];
+            if (promise.id && this.promises[promise.id]) {
+              promise = this.promises[promise.id];
+            } else if (promise.id) {
+              this.promises[promise.id] = promise;
+            }
+
+            if (!(promise.pending || promise.rejected || promise.fulfilled)) {
+              toFulfill.push(promise);
+            }
+          }
+        }
+
+        Vias.fulfillPromises(toFulfill, (err, promise) => {
           this.forceUpdate();
           this.subscribeModel(promise.cacheModel());
         });
@@ -61,14 +91,15 @@ function vias(options = {}) {
       }
 
       render() {
-        return React.createElement(WrappedComponent, this.props);
+        return React.createElement(WrappedComponent, _.extend({}, this.props, this.extendPromises(this.props)));
       }
 
       componentWillUnmount() {
         for (let name in this.models) {
-          let {model, listener} = this.models[name];
-          model.unsubsribe(listener);
-          model.clearPromiseGroup(this.viasGroupId);
+          if (this.models.hasOwnProperty(name)) {
+            let {model, listener} = this.models[name];
+            model.unsubscribe(listener);
+          }
         }
       }
     }
