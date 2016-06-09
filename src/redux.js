@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import Model from './Model';
-import {ViasDependPromise} from './ViasDepend';
+import Depend from './Depend';
 
 const INIT_MODELS = 'VIAS_INIT_MODELS';
 
@@ -53,6 +53,9 @@ export class ReduxModel extends Model {
       throw new Error('Cannot connect non Vias Model');
     }
     let newModel = new ReduxModel(store, model.name, model.aliases, model.methods);
+    // Depend model function
+    newModel.set = model.set;
+    newModel.run = model.run;
     return newModel;
   }
 
@@ -84,13 +87,7 @@ export class ReduxModel extends Model {
 }
 
 export function viasConnect(store, ...models) {
-  let ViasDepend = new ReduxModel(store, 'ViasDepend');
-  ViasDepend.exec = function (dependencies, dependExec) {
-    return new ViasDependPromise(this, dependencies, dependExec);
-  };
-  let reduxModels = [ViasDepend];
-  for (let model of models) {
-    reduxModels.push(ReduxModel.connect(store, model));
-  }
+  models.push(Depend);
+  let reduxModels = _.map(models, (model) => ReduxModel.connect(store, model));
   store.dispatch(initModels(reduxModels));
 }
