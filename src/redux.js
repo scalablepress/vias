@@ -52,15 +52,15 @@ export class ReduxModel extends Model {
     if (!(model instanceof Model)) {
       throw new Error('Cannot connect non Vias Model');
     }
-    let newModel = new ReduxModel(store, model.name, model.aliases, model.methods);
+    let newModel = new ReduxModel(store, model.name, model.aliases, model.methods, model.custom);
     // Depend model function
     newModel.set = model.set;
     newModel.run = model.run;
     return newModel;
   }
 
-  constructor(store, name, aliases = {}, methods = {}) {
-    super(name, aliases, methods);
+  constructor(store, name, aliases = {}, methods = {}, custom = {}) {
+    super(name, aliases, methods, custom);
     this.storeGetState = store.getState;
     this.storeDispatch = store.dispatch;
   }

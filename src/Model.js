@@ -5,17 +5,19 @@ import {MODEL_CACHE_UPDATED, DOCUMENT_SHAPE, ARRAY_SHAPE} from './constants';
 import ViasPromise from './ViasPromise';
 
 class Model {
-  constructor(name, aliases = {}, methods = {}) {
+  constructor(name, aliases = {}, methods = {}, custom = {}) {
     this.name = name;
     this.docs = {};
     this.promises = {};
     this.aliases = aliases;
     this.listeners = [];
     this.customResults = {};
+
     this.methods = methods;
+    this.custom = custom;
 
     this.get = (alias, key, options) => {
-      if (!this.methods.get) {
+      if (!methods.get) {
         throw new Error('Get method is not implemented');
       }
 
@@ -25,7 +27,7 @@ class Model {
           return cb(null, {alias, restul: key});
         }
 
-        this.methods.get(alias, key, options, (err, doc) => {
+        methods.get(alias, key, options, (err, doc) => {
           if (err) {
             cb(err);
           }
@@ -44,7 +46,7 @@ class Model {
     };
 
     this.bulk = (alias, keys = [], options = {}) => {
-      if (!this.methods.bulk) {
+      if (!methods.bulk) {
         throw new Error('Bulk method is not implemented');
       }
 
@@ -64,7 +66,7 @@ class Model {
           return cb(null, {alias, result: keys});
         }
 
-        this.methods.bulk(alias, keysToGet, options, (err, remoteResult) => {
+        methods.bulk(alias, keysToGet, options, (err, remoteResult) => {
           if (err) {
             return cb(err);
           }
@@ -86,43 +88,41 @@ class Model {
       return new ViasPromise(this, 'bulk', {alias, keys: keysObj}, ARRAY_SHAPE, exec);
     };
 
-    if (methods.custom) {
-      for (let methodName in methods.custom) {
-        if (methods.custom.hasOwnProperty(methodName)) {
-          let {shape, action} = methods.custom[methodName];
-          this[methodName] = (data = {}, options = {}) => {
-            let exec = (cb) => {
-              let resultFromCache = this.getCustomResult(methodName, data, options.expiry || 0);
-              if (resultFromCache) {
-                return cb(null, {alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result}, resultFromCache.meta);
+    for (let methodName in custom) {
+      if (custom.hasOwnProperty(methodName)) {
+        let {shape, action} = custom[methodName];
+        this[methodName] = (data = {}, options = {}) => {
+          let exec = (cb) => {
+            let resultFromCache = this.getCustomResult(methodName, data, options.expiry || 0);
+            if (resultFromCache) {
+              return cb(null, {alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result}, resultFromCache.meta);
+            }
+            action(data, options, (err, result, meta) => {
+              if (err) {
+                return cb(err);
               }
-              action(data, options, (err, result, meta) => {
-                if (err) {
-                  return cb(err);
+              let fetchedAt = new Date();
+              let alias = _.first(Object.keys(this.aliases));
+              let aliasPath = this.aliases[alias];
+              let aliasResult;
+              let documentPaths = shape(result);
+              if (!documentPaths) {
+                aliasResult = _.get(result, aliasPath);
+              } else {
+                aliasResult = _.cloneDeep(result);
+                for (let path of documentPaths) {
+                  let doc = _.get(result, path);
+                  this.saveToCache(doc, fetchedAt);
+                  _.set(aliasResult, path, _.get(doc, aliasPath));
                 }
-                let fetchedAt = new Date();
-                let alias = _.first(Object.keys(this.aliases));
-                let aliasPath = this.aliases[alias];
-                let aliasResult;
-                let documentPaths = shape(result);
-                if (!documentPaths) {
-                  aliasResult = _.get(result, aliasPath);
-                } else {
-                  aliasResult = _.cloneDeep(result);
-                  for (let path of documentPaths) {
-                    let doc = _.get(result, path);
-                    this.saveToCache(doc, fetchedAt);
-                    _.set(aliasResult, path, _.get(doc, aliasPath));
-                  }
-                }
-                this.saveCustomResult(methodName, data, alias, aliasResult, meta, fetchedAt);
-                cb(null, {alias, result: aliasResult}, meta);
-                this._broadcast(MODEL_CACHE_UPDATED);
-              });
-            };
-            return new ViasPromise(this, methodName, {data}, shape, exec);
+              }
+              this.saveCustomResult(methodName, data, alias, aliasResult, meta, fetchedAt);
+              cb(null, {alias, result: aliasResult}, meta);
+              this._broadcast(MODEL_CACHE_UPDATED);
+            });
           };
-        }
+          return new ViasPromise(this, methodName, {data}, shape, exec);
+        };
       }
     }
   }
