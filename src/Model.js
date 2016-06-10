@@ -36,7 +36,7 @@ class Model {
             return cb('Cannot find document');
           }
 
-          this.saveToCache(doc, new Date());
+          this.save(doc, new Date());
           cb(null, {alias, result: key});
           this._broadcast(MODEL_CACHE_UPDATED);
         });
@@ -72,7 +72,7 @@ class Model {
           }
           let fetchedAt = new Date();
           for (let doc of remoteResult) {
-            this.saveToCache(doc, fetchedAt);
+            this.save(doc, fetchedAt);
           }
 
           cb(null, {alias, result: keys});
@@ -112,7 +112,7 @@ class Model {
                 aliasResult = _.cloneDeep(result);
                 for (let path of documentPaths) {
                   let doc = _.get(result, path);
-                  this.saveToCache(doc, fetchedAt);
+                  this.save(doc, fetchedAt);
                   _.set(aliasResult, path, _.get(doc, aliasPath));
                 }
               }
@@ -194,19 +194,21 @@ class Model {
     return null;
   }
 
-  saveToCache(doc, fetchedAt) {
+  save(doc, fetchedAt) {
     let cache = this.cache();
     fetchedAt = fetchedAt || new Date();
     for (let alias in this.aliases) {
-      let path = this.aliases[alias];
-      let key = _.get(doc, path);
-      if (!_.isUndefined(key)) {
-        if (!cache[alias]) {
-          cache[alias] = {};
+      if (this.aliases.hasOwnProperty(alias)) {
+        let path = this.aliases[alias];
+        let key = _.get(doc, path);
+        if (!_.isUndefined(key)) {
+          if (!cache[alias]) {
+            cache[alias] = {};
+          }
+          cache[alias][key] = {fetchedAt, doc};
+        } else {
+          throw new Error('Alias field is not defined');
         }
-        cache[alias][key] = {fetchedAt, doc};
-      } else {
-        throw new Error('Alias field is not defined');
       }
     }
     this.docs = cache;
