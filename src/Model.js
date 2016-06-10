@@ -164,7 +164,7 @@ class Model {
   }
 
   saveCustomResult(method, data, alias, result, meta, fetchedAt) {
-    let cache = this.findCache;
+    let cache = this.customCache();
     let dataKey = objectHash(data);
     if (!cache[method]) {
       cache[method] = {};

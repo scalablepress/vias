@@ -69,12 +69,8 @@ export class ReduxModel extends Model {
     return this.storeGetState().vias.__SNAPSHOTS__[this.name].docs;
   }
 
-  findCache() {
-    return this.storeGetState().vias.__SNAPSHOTS__[this.name].findResults;
-  }
-
-  promiseStore() {
-    return this.storeGetState().vias.__SNAPSHOTS__[this.name].promises;
+  customCache() {
+    return this.storeGetState().vias.__SNAPSHOTS__[this.name].customResults;
   }
 
   _broadcast(event) {
@@ -82,7 +78,7 @@ export class ReduxModel extends Model {
   }
 
   snapshot() {
-    return _.cloneDeep({docs: this.docs, findResults: this.findResults, promises: this.promises});
+    return _.cloneDeep({docs: this.docs, customResults: this.customResults});
   }
 }
 
