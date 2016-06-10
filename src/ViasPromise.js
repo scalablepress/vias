@@ -45,6 +45,7 @@ class ViasPromise {
   fulfill() {
     this.pending = true;
 
+    this.started = true;
     this._exec((err, result, meta) => {
       if (err) {
         this.reason = err;

@@ -24,7 +24,7 @@ class Model {
       let exec = (cb) => {
         let docFromCache = this.getFromCache(alias, key, (options && options.expiry) || 0);
         if (docFromCache) {
-          return cb(null, {alias, restul: key});
+          return cb(null, {alias, result: key});
         }
 
         methods.get(alias, key, options, (err, doc) => {
@@ -93,7 +93,7 @@ class Model {
         let {shape, action} = custom[methodName];
         this[methodName] = (data = {}, options = {}) => {
           let exec = (cb) => {
-            let resultFromCache = this.getCustomResult(methodName, data, options.expiry || 0);
+            let resultFromCache = this.getCustomResult(methodName, data, shape, options.expiry || 0);
             if (resultFromCache) {
               return cb(null, {alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result}, resultFromCache.meta);
             }
@@ -145,7 +145,7 @@ class Model {
 
       if (!expired) {
         // Refetch if any record passed the expiry
-        let aliasPaths = shape(cacheRecord);
+        let aliasPaths = shape(cacheRecord.result);
         if (!aliasPaths) {
           if (!this.getFromCache(cacheRecord.alias, cacheRecord.result, expiry)) {
             return null;
@@ -170,7 +170,7 @@ class Model {
       cache[method] = {};
     }
     cache[method][dataKey] = {alias, result, meta, fetchedAt};
-    this.findResults = cache;
+    this.customResults = cache;
   }
 
   cache() {

@@ -70,7 +70,7 @@ function vias(options = {}) {
               this.promises[promise.id] = promise;
             }
 
-            if (!(promise.pending || promise.rejected || promise.fulfilled)) {
+            if (!promise.started) {
               toFulfill.push(promise);
             }
           }
@@ -78,6 +78,7 @@ function vias(options = {}) {
 
         Vias.fulfillPromises(toFulfill, (err, promise) => {
           this.forceUpdate();
+          this.fulfillPromises(this.props);
           this.subscribeModel(promise.cacheModel());
         });
       }
