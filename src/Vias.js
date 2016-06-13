@@ -77,9 +77,10 @@ function vias(options = {}) {
         }
 
         Vias.fulfillPromises(toFulfill, (err, promise) => {
-          this.forceUpdate();
+          this.promises[promise] = Object.assign({}, promise);
           this.fulfillPromises(this.props);
           this.subscribeModel(promise.cacheModel());
+          this.forceUpdate();
         });
       }
 
