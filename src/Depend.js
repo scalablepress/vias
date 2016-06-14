@@ -59,13 +59,16 @@ export class ViasDependPromise extends ViasPromise {
 
 let Depend = new Model('Depend');
 
-Depend.set = function (dependencies) {
-  this.dependencies = dependencies;
-  return this;
-};
+function toRun(dependencies) {
+  return {
+    run: function (dependExec) {
+      return new ViasDependPromise(Depend, dependencies || {}, dependExec);
+    },
+  };
+}
 
-Depend.run = function (dependExec) {
-  return new ViasDependPromise(this, this.dependencies || {}, dependExec);
+Depend.set = function (dependencies) {
+  return toRun(dependencies);
 };
 
 export default Depend;
