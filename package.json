@@ -23,6 +23,7 @@
   "author": "Scalable Press",
   "dependencies": {
     "async": "^1.0.0",
+    "hoist-non-react-statics": "^1.1.0",
     "lodash": "^3.10.1",
     "object-hash": "^1.1.2"
   },
