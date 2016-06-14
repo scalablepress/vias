@@ -1,14 +1,22 @@
 import _ from 'lodash';
 import objectHash from 'object-hash';
 
-import {MODEL_CACHE_UPDATED, DOCUMENT_SHAPE, ARRAY_SHAPE} from './constants';
+import {MODEL_CACHE_UPDATED, DOCUMENT_SHAPE, ARRAY_SHAPE, FOREVER} from './constants';
 import ViasPromise from './ViasPromise';
+
+let isNode = false;
+if (typeof process === 'object') {
+  if (typeof process.versions === 'object') {
+    if (typeof process.versions.node !== 'undefined') {
+      isNode = true;
+    }
+  }
+}
 
 class Model {
   constructor(name, aliases = {}, methods = {}, custom = {}) {
     this.name = name;
     this.docs = {};
-    this.promises = {};
     this.aliases = aliases;
     this.listeners = [];
     this.customResults = {};
@@ -132,6 +140,9 @@ class Model {
   }
 
   getCustomResult(method, data, shape, expiry) {
+    if (isNode) {
+      expiry = FOREVER;
+    }
     let cache = this.customCache();
     let dataKey = objectHash(data);
     if (cache[method] && cache[method][dataKey]) {
@@ -178,6 +189,9 @@ class Model {
   }
 
   getFromCache(alias, key, expiry) {
+    if (isNode) {
+      expiry = FOREVER;
+    }
     let cache = this.cache();
     if (cache[alias] && cache[alias][key]) {
       let expired;
