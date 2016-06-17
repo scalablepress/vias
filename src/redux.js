@@ -26,7 +26,9 @@ const reduceHandlers = {
     let newState = Object.assign({}, state);
     for (let model of models) {
       newState[model.name] = model;
-      newState.__SNAPSHOTS__[model.name] = model.snapshot();
+      if (!newState.__SNAPSHOTS__[model.name]) {
+        newState.__SNAPSHOTS__[model.name] = model.snapshot();
+      }
     }
     return newState;
   },
