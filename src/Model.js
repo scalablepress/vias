@@ -116,6 +116,7 @@ class Model {
               let documentPaths = shape(result);
               if (!documentPaths) {
                 aliasResult = _.get(result, aliasPath);
+                this.save(result, fetchedAt);
               } else {
                 aliasResult = _.cloneDeep(result);
                 for (let path of documentPaths) {
@@ -161,11 +162,12 @@ class Model {
           if (!this.getFromCache(cacheRecord.alias, cacheRecord.result, expiry)) {
             return null;
           }
-        }
-        for (let path of aliasPaths) {
-          let key = _.get(cacheRecord.result, path);
-          if (!this.getFromCache(cacheRecord.alias, key, expiry)) {
-            return null;
+        } else {
+          for (let path of aliasPaths) {
+            let key = _.get(cacheRecord.result, path);
+            if (!this.getFromCache(cacheRecord.alias, key, expiry)) {
+              return null;
+            }
           }
         }
         return cacheRecord;
