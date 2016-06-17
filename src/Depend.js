@@ -8,7 +8,9 @@ export class ViasDependPromise extends ViasPromise {
   constructor(dependModel, dependencies, dependExec) {
     super(dependModel);
     this.dependExec = dependExec;
-    this.update(dependencies);
+    if (dependencies) {
+      this.update(dependencies);
+    }
   }
 
   cacheModel() {

@@ -134,7 +134,11 @@ function vias() {
         }
 
         fulfillReady(toFulfill, (err, promise) => {
-          this.promises[promise] = Object.assign({}, promise);
+          if (promise instanceof ViasDependPromise) {
+            this.promises[promise.id] = Object.assign(new ViasDependPromise(), promise);
+          } else {
+            this.promises[promise.id] = Object.assign(new ViasPromise(), promise);
+          }
           this.fulfillPromises(this.props);
           this.subscribeModel(promise.cacheModel());
           this.forceUpdate();

@@ -149,7 +149,7 @@ class Model {
       let expired;
       let cacheRecord = cache[method][dataKey];
       if (expiry >= 0) {
-        expired = cacheRecord.fetchedAt.getTime() + expiry < new Date().getTime();
+        expired = new Date(cacheRecord.fetchedAt).getTime() + expiry < new Date().getTime();
       } else {
         expired = false;
       }
@@ -196,7 +196,7 @@ class Model {
     if (cache[alias] && cache[alias][key]) {
       let expired;
       if (expiry >= 0) {
-        expired = (cache[alias][key].fetchedAt).getTime() + expiry < new Date().getTime();
+        expired = (new Date(cache[alias][key].fetchedAt)).getTime() + expiry < new Date().getTime();
       } else {
         expired = false;
       }
