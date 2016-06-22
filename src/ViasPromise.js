@@ -2,10 +2,11 @@ import _ from 'lodash';
 import objectHash from './objectHash';
 
 class ViasPromise {
-  constructor(model, method, data, shape, exec) {
+  constructor(model, method, data, options, shape, exec) {
     this.model = model;
     this.method = method;
     this.data = data;
+    this.options = options;
     this.shape = shape;
     this._exec = exec;
     this.pending = false;
@@ -46,7 +47,7 @@ class ViasPromise {
     this.pending = true;
 
     this.started = true;
-    this._exec((err, result, meta) => {
+    this._exec(this.options, (err, result, meta) => {
       if (err) {
         this.reason = err;
         this.pending = this.fulfilled = false;

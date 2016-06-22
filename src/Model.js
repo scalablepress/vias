@@ -1,17 +1,8 @@
 import _ from 'lodash';
 import objectHash from './objectHash';
 
-import {MODEL_CACHE_UPDATED, DOCUMENT_SHAPE, ARRAY_SHAPE, FOREVER} from './constants';
+import {MODEL_CACHE_UPDATED, DOCUMENT_SHAPE, ARRAY_SHAPE} from './constants';
 import ViasPromise from './ViasPromise';
-
-let isNode = false;
-if (typeof process === 'object') {
-  if (typeof process.versions === 'object') {
-    if (typeof process.versions.node !== 'undefined') {
-      isNode = true;
-    }
-  }
-}
 
 class Model {
   constructor(name, aliases = {}, methods = {}, custom = {}) {
@@ -29,7 +20,7 @@ class Model {
         throw new Error('Get method is not implemented');
       }
 
-      let exec = (cb) => {
+      let exec = (options, cb) => {
         let docFromCache = this.getFromCache(alias, key, (options && options.expiry) || 0);
         if (docFromCache) {
           return cb(null, {alias, result: key});
@@ -50,7 +41,7 @@ class Model {
         });
       };
 
-      return new ViasPromise(this, 'get', {alias, key}, DOCUMENT_SHAPE, exec);
+      return new ViasPromise(this, 'get', {alias, key}, options, DOCUMENT_SHAPE, exec);
     };
 
     this.bulk = (alias, keys = [], options = {}) => {
@@ -58,7 +49,7 @@ class Model {
         throw new Error('Bulk method is not implemented');
       }
 
-      let exec = (cb) => {
+      let exec = (options, cb) => {
         let keysToGet = [];
         let result = {};
         for (let key of keys) {
@@ -93,14 +84,14 @@ class Model {
         keysObj[key] = true;
       }
 
-      return new ViasPromise(this, 'bulk', {alias, keys: keysObj}, ARRAY_SHAPE, exec);
+      return new ViasPromise(this, 'bulk', {alias, keys: keysObj}, options, ARRAY_SHAPE, exec);
     };
 
     for (let methodName in custom) {
       if (custom.hasOwnProperty(methodName)) {
         let {shape, action} = custom[methodName];
         this[methodName] = (data = {}, options = {}) => {
-          let exec = (cb) => {
+          let exec = (options, cb) => {
             let resultFromCache = this.getCustomResult(methodName, data, shape, options.expiry || 0);
             if (resultFromCache) {
               return cb(null, {alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result}, resultFromCache.meta);
@@ -130,7 +121,7 @@ class Model {
               this._broadcast(MODEL_CACHE_UPDATED);
             });
           };
-          return new ViasPromise(this, methodName, {data}, shape, exec);
+          return new ViasPromise(this, methodName, {data}, options, shape, exec);
         };
       }
     }
@@ -141,9 +132,6 @@ class Model {
   }
 
   getCustomResult(method, data, shape, expiry) {
-    if (isNode) {
-      expiry = FOREVER;
-    }
     let cache = this.customCache();
     let dataKey = objectHash(data);
     if (cache[method] && cache[method][dataKey]) {
@@ -191,9 +179,6 @@ class Model {
   }
 
   getFromCache(alias, key, expiry) {
-    if (isNode) {
-      expiry = FOREVER;
-    }
     let cache = this.cache();
     if (cache[alias] && cache[alias][key]) {
       let expired;
