@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import objectHash from 'object-hash';
+import objectHash from './objectHash';
 
 class ViasPromise {
   constructor(model, method, data, shape, exec) {

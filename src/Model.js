@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import objectHash from 'object-hash';
+import objectHash from './objectHash';
 
 import {MODEL_CACHE_UPDATED, DOCUMENT_SHAPE, ARRAY_SHAPE, FOREVER} from './constants';
 import ViasPromise from './ViasPromise';
