@@ -6,6 +6,7 @@ import hoistNonReactStatic from 'hoist-non-react-statics';
 
 import ViasPromise from './ViasPromise';
 import {ViasDependPromise} from './Depend';
+import {FOREVER} from './constants'
 
 function fulfillReady(promises, onPromiseFinish, cb) {
   async.each(promises, function (promise, eCb) {
@@ -40,7 +41,7 @@ function extendPromises(props, promiseMap) {
   return _.extend({}, props, promises);
 }
 
-function fulfilling(props, promiseMap) {
+function fulfilling(props, promiseMap, noExpiry) {
   let toFulfill = [];
   let promiseProps = extendPromises(props, promiseMap);
   for (let key in promiseProps) {
@@ -53,6 +54,10 @@ function fulfilling(props, promiseMap) {
       }
 
       if (!promise.started) {
+        if (noExpiry) {
+          promise.options = promise.options || {};
+          promise.options.expiry = FOREVER;
+        }
         toFulfill.push(promise);
       }
     }
@@ -97,6 +102,8 @@ function fulfillAll(props, cb) {
   iterate();
 }
 
+let firstMounted = false;
+
 function vias() {
   return function (WrappedComponent) {
     class Vias extends React.Component {
@@ -109,6 +116,10 @@ function vias() {
         super(props);
         this.models = {};
         this.promises = {};
+        if (!firstMounted) {
+          this.first = true;
+          firstMounted = true;
+        }
       }
 
       subscribeModel(model) {
@@ -128,7 +139,7 @@ function vias() {
 
 
       fulfillPromises(props) {
-        let toFulfill = fulfilling(props, this.promises);
+        let toFulfill = fulfilling(props, this.promises, this.first);
         if (toFulfill.length <= 0) {
           return;
         }

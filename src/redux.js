@@ -25,17 +25,16 @@ const reduceHandlers = {
   [INIT_MODELS]: function (state, {models}) {
     let newState = Object.assign({}, state);
     for (let model of models) {
-      newState[model.name] = model;
-      if (!newState.__SNAPSHOTS__[model.name]) {
-        newState.__SNAPSHOTS__[model.name] = model.snapshot();
+      if (newState[model.name]) {
+        newState[model.name] = Object.assign(model, {docs: newState[model.name].docs, customResults: newState[model.name].customResults});
+      } else {
+        newState[model.name] = model;
       }
     }
     return newState;
   },
   [MODEL_UPDATE]: function (state, {model}) {
-    let __SNAPSHOTS__ = Object.assign({}, state.__SNAPSHOTS__);
-    __SNAPSHOTS__[model.name] = model.snapshot();
-    let newState = Object.assign({}, state, {__SNAPSHOTS__});
+    let newState = Object.assign({}, state, {[model.name]: model.snapshot()});
     return newState;
   },
 };
@@ -67,20 +66,12 @@ export class ReduxModel extends Model {
     this.storeDispatch = store.dispatch;
   }
 
-  cache() {
-    return this.storeGetState().vias.__SNAPSHOTS__[this.name].docs;
-  }
-
-  customCache() {
-    return this.storeGetState().vias.__SNAPSHOTS__[this.name].customResults;
-  }
-
   _broadcast(event) {
     this.storeDispatch(updateModel(this, event));
   }
 
   snapshot() {
-    return _.cloneDeep({docs: this.docs, customResults: this.customResults});
+    return Object.assign({}, this, {docs: _.cloneDeep(this.docs), customResults: _.cloneDeep(this.customResults)});
   }
 }
 
