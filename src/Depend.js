@@ -30,11 +30,15 @@ export class ViasDependPromise extends ViasPromise {
     }
 
     this.dependant = this._computeDependant();
-    this.shape = this.dependant.shape;
-    this._exec = this.dependant._exec;
-    this.options = this.dependant.options;
-    this.id = this.dependant.id;
-    return this;
+    if (this.dependant) {
+      this.shape = this.dependant.shape;
+      this._exec = this.dependant._exec;
+      this.options = this.dependant.options;
+      this.id = this.dependant.id;
+      return this;
+    } else {
+      this._exec = (options, cb) => cb();
+    }
   }
 
   _computeDependant() {
