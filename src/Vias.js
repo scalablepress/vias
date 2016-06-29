@@ -50,7 +50,6 @@ function fulfilling(props, promiseMap, noExpiry) {
       if (promise.id && promiseMap[promise.id]) {
         promise = promiseMap[promise.id];
       } else if (promise.id) {
-        console.log('promise ID', promise.id);
         promiseMap[promise.id] = promise;
       }
 
