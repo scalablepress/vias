@@ -6,7 +6,7 @@ import hoistNonReactStatic from 'hoist-non-react-statics';
 
 import ViasPromise from './ViasPromise';
 import {ViasDependPromise} from './Depend';
-import {FOREVER} from './constants'
+import {FOREVER} from './constants';
 
 function fulfillReady(promises, onPromiseFinish, cb) {
   async.each(promises, function (promise, eCb) {
