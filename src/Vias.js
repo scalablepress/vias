@@ -50,10 +50,11 @@ function fulfilling(props, promiseMap, noExpiry) {
       if (promise.id && promiseMap[promise.id]) {
         promise = promiseMap[promise.id];
       } else if (promise.id) {
+        console.log('promise ID', promise.id);
         promiseMap[promise.id] = promise;
       }
 
-      if (!promise.started) {
+      if (!promise.started && promise.id) {
         if (noExpiry) {
           promise.options = promise.options || {};
           promise.options.expiry = FOREVER;
@@ -151,7 +152,9 @@ function vias() {
             this.promises[promise.id] = Object.assign(new ViasPromise(), promise);
           }
           this.fulfillPromises(this.props);
-          this.subscribeModel(promise.cacheModel());
+          if (promise.cacheModel()) {
+            this.subscribeModel(promise.cacheModel());
+          }
           this.forceUpdate();
         });
       }
