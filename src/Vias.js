@@ -6,8 +6,8 @@ import hoistNonReactStatic from 'hoist-non-react-statics';
 
 import ViasPromise from './ViasPromise';
 import {ViasDependPromise} from './Depend';
-import {FOREVER} from './constants';
 
+// Fulfill ready promise (no dependencies/ dependenices fulfilled)
 function fulfillReady(promises, onPromiseFinish, cb) {
   async.each(promises, function (promise, eCb) {
     promise.exec((err, result) => {
@@ -19,6 +19,7 @@ function fulfillReady(promises, onPromiseFinish, cb) {
   }, cb);
 }
 
+// Override promise in props with promised already saved in the component
 function extendPromises(props, promiseMap) {
   let promises = {};
   for (let key in props) {
@@ -41,7 +42,8 @@ function extendPromises(props, promiseMap) {
   return _.extend({}, props, promises);
 }
 
-function fulfilling(props, promiseMap, noExpiry) {
+// Filter out promises in prop that should be fulfilled
+function fulfilling(props, promiseMap) {
   let toFulfill = [];
   let promiseProps = extendPromises(props, promiseMap);
   for (let key in promiseProps) {
@@ -54,10 +56,6 @@ function fulfilling(props, promiseMap, noExpiry) {
       }
 
       if (!promise.started && promise.id) {
-        if (noExpiry) {
-          promise.options = promise.options || {};
-          promise.options.expiry = FOREVER;
-        }
         toFulfill.push(promise);
       }
     }
@@ -71,12 +69,16 @@ function allFulfilled(promiseMap) {
   });
 }
 
+let firstMounted = false;
+
+// Fulfill everything in props (for server-side)
 function fulfillAll(props, cb) {
   let promiseMap = {};
   let calledBack = false;
 
   function callback(err, result) {
     if (!calledBack) {
+      firstMounted = false;
       return cb(err, result);
     }
     calledBack = true;
@@ -102,7 +104,18 @@ function fulfillAll(props, cb) {
   iterate();
 }
 
-let firstMounted = false;
+// Synchrously fulfill every promise for first vias component mount to consume data from server-side
+function syncFulfill(props, promiseMap) {
+  for (let key in props) {
+    if (props[key] instanceof ViasPromise) {
+      let promise = props[key];
+      if (!promise.fulfilled) {
+        promise.fulfill({sync: true});
+        promiseMap[promise.id] = promise;
+      }
+    }
+  }
+}
 
 function vias() {
   return function (WrappedComponent) {
@@ -117,8 +130,7 @@ function vias() {
         this.models = {};
         this.promises = {};
         if (!firstMounted) {
-          this.first = true;
-          firstMounted = true;
+          syncFulfill(props, this.promises);
         }
       }
 
@@ -139,7 +151,7 @@ function vias() {
 
 
       fulfillPromises(props) {
-        let toFulfill = fulfilling(props, this.promises, this.first);
+        let toFulfill = fulfilling(props, this.promises);
         if (toFulfill.length <= 0) {
           return;
         }
@@ -159,7 +171,11 @@ function vias() {
       }
 
       componentWillMount() {
-        this.fulfillPromises(this.props);
+        if (firstMounted) {
+          this.fulfillPromises(this.props);
+        } else {
+          firstMounted = true;
+        }
       }
 
       componentWillReceiveProps(nextProps) {
