@@ -20,10 +20,14 @@ class Model {
         throw new Error('Get method is not implemented');
       }
 
-      let exec = (options, cb) => {
-        let docFromCache = this.getFromCache(alias, key, (options && options.expiry) || 0);
+      let exec = (options = {}, cb) => {
+        let docFromCache = this.getFromCache(alias, key, options.expiry || 0, options.sync);
         if (docFromCache) {
           return cb(null, {alias, result: key});
+        }
+
+        if (options.sync) {
+          return;
         }
 
         methods.get(alias, key, options, (err, doc) => {
@@ -49,11 +53,11 @@ class Model {
         throw new Error('Bulk method is not implemented');
       }
 
-      let exec = (options, cb) => {
+      let exec = (options = {}, cb) => {
         let keysToGet = [];
         let result = {};
         for (let key of keys) {
-          let docFromCache = this.getFromCache(alias, key, options.expiry || 0);
+          let docFromCache = this.getFromCache(alias, key, options.expiry || 0, options.sync);
           if (docFromCache) {
             result[key] = docFromCache;
           } else {
@@ -63,6 +67,10 @@ class Model {
 
         if (keysToGet.length === 0) {
           return cb(null, {alias, result: keys});
+        }
+
+        if (options.sync) {
+          return;
         }
 
         methods.bulk(alias, keysToGet, options, (err, remoteResult) => {
@@ -91,11 +99,16 @@ class Model {
       if (custom.hasOwnProperty(methodName)) {
         let {shape, action} = custom[methodName];
         this[methodName] = (data = {}, options = {}) => {
-          let exec = (options, cb) => {
-            let resultFromCache = this.getCustomResult(methodName, data, shape, options.expiry || 0);
+          let exec = (options = {}, cb) => {
+            let resultFromCache = this.getCustomResult(methodName, data, shape, options.expiry || 0, options.sync);
             if (resultFromCache) {
               return cb(null, {alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result}, resultFromCache.meta);
             }
+
+            if (options.sync) {
+              return;
+            }
+
             action(data, options, (err, result, meta) => {
               if (err) {
                 return cb(err);
@@ -131,13 +144,13 @@ class Model {
     return this.customResults;
   }
 
-  getCustomResult(method, data, shape, expiry) {
+  getCustomResult(method, data, shape, expiry, sync) {
     let cache = this.customCache();
     let dataKey = objectHash(data);
     if (cache[method] && cache[method][dataKey]) {
       let expired;
       let cacheRecord = cache[method][dataKey];
-      if (expiry >= 0) {
+      if (expiry >= 0 && !sync) {
         expired = new Date(cacheRecord.fetchedAt).getTime() + expiry < new Date().getTime();
       } else {
         expired = false;
@@ -147,13 +160,13 @@ class Model {
         // Refetch if any record passed the expiry
         let aliasPaths = shape(cacheRecord.result);
         if (!aliasPaths) {
-          if (!this.getFromCache(cacheRecord.alias, cacheRecord.result, expiry)) {
+          if (!this.getFromCache(cacheRecord.alias, cacheRecord.result, expiry, sync)) {
             return null;
           }
         } else {
           for (let path of aliasPaths) {
             let key = _.get(cacheRecord.result, path);
-            if (!this.getFromCache(cacheRecord.alias, key, expiry)) {
+            if (!this.getFromCache(cacheRecord.alias, key, expiry, sync)) {
               return null;
             }
           }
@@ -178,11 +191,11 @@ class Model {
     return this.docs;
   }
 
-  getFromCache(alias, key, expiry) {
+  getFromCache(alias, key, expiry, sync) {
     let cache = this.cache();
     if (cache[alias] && cache[alias][key]) {
       let expired;
-      if (expiry >= 0) {
+      if (expiry >= 0 && !sync) {
         expired = (new Date(cache[alias][key].fetchedAt)).getTime() + expiry < new Date().getTime();
       } else {
         expired = false;
