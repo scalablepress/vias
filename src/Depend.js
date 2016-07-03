@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import Model from './Model';
 import ViasPromise from './ViasPromise';
-import {viasPromiseValue} from './util';
+import {viasPromiseValue, viasPromiseState} from './util';
 
 export class ViasDependPromise extends ViasPromise {
   constructor(dependModel, dependencies, dependExec) {
@@ -28,8 +28,18 @@ export class ViasDependPromise extends ViasPromise {
         return this;
       }
     }
+    this._prepareExec();
+  }
 
-    this.dependant = this._computeDependant();
+  _computeDependant() {
+    if (viasPromiseState(this.dependencies).fulfilled) {
+      let dependencyValues = viasPromiseValue(this.dependencies);
+      this.dependant = this.dependExec(dependencyValues);
+    }
+  }
+
+  _prepareExec() {
+    this._computeDependant();
     if (this.dependant) {
       this.shape = this.dependant.shape;
       this._exec = this.dependant._exec;
@@ -41,16 +51,23 @@ export class ViasDependPromise extends ViasPromise {
     }
   }
 
-  _computeDependant() {
-    let dependencyValues = viasPromiseValue(this.dependencies);
-    return this.dependExec(dependencyValues);
-  }
-
-  fulfill() {
+  fulfill(options = {}) {
     this.pending = true;
 
-    if (this._exec) {
-      super.fulfill();
+    if (options.sync) {
+      for (let key in this.dependencies) {
+        if (this.dependencies.hasOwnProperty(key)) {
+          let promise = this.dependencies[key];
+          if (!promise.fulfilled) {
+            promise.fulfill({sync: true});
+          }
+        }
+      }
+      this._prepareExec();
+    }
+
+    if (this.dependant) {
+      return super.fulfill(options);
     }
 
     return this;
