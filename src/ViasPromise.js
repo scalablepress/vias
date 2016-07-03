@@ -43,11 +43,18 @@ class ViasPromise {
     }
   }
 
-  fulfill() {
+  fulfill(options = {}) {
     this.pending = true;
 
-    this.started = true;
-    this._exec(this.options, (err, result, meta) => {
+    options = _.extend({}, this.options, options);
+    // Only mark started when it is not a sync fulfill, so unsccuessful promise can be start again
+    if (!options.sync) {
+      this.started = true;
+    }
+
+    this._exec(options, (err, result, meta) => {
+      // Ensure to marked started for successful sync fulfill
+      this.started = true;
       if (err) {
         this.reason = err;
         this.pending = this.fulfilled = false;
