@@ -26,7 +26,10 @@ const reduceHandlers = {
     let newState = Object.assign({}, state);
     for (let model of models) {
       if (newState[model.name]) {
-        newState[model.name] = Object.assign(model, {docs: newState[model.name].docs, customResults: newState[model.name].customResults});
+        newState[model.name] = Object.assign(model, {
+          docs: newState[model.name].docs,
+          customResults: newState[model.name].customResults,
+        });
       } else {
         newState[model.name] = model;
       }
@@ -39,7 +42,7 @@ const reduceHandlers = {
   },
 };
 
-export function viasReducer(state = {__SNAPSHOTS__: {}}, action) {
+export function viasReducer(state = {}, action) {
   let handler = reduceHandlers[action.type];
   if (handler) {
     return handler(state, action);
