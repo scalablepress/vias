@@ -174,17 +174,19 @@ function vias() {
           if (promise.cacheModel()) {
             this.subscribeModel(promise.cacheModel());
           }
-          this.forceUpdate();
+          // Only update component when meaningful promise get fulfilled
+          if (_.compact(_.map(toFulfill, 'id')).length > 0) {
+            this.forceUpdate();
+          }
         });
       }
 
       componentWillMount() {
         if (firstMounted || consumed) {
           this.fulfillPromises(this.props);
-        } else {
-          firstMounted = true;
-          consumed = true;
         }
+        firstMounted = true;
+        consumed = true;
       }
 
       componentWillReceiveProps(nextProps) {
