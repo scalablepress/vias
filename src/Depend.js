@@ -35,6 +35,7 @@ export class ViasDependPromise extends ViasPromise {
     if (viasPromiseState(this.dependencies).fulfilled) {
       let dependencyValues = viasPromiseValue(this.dependencies);
       this.dependant = this.dependExec(dependencyValues);
+      this.ready = true;
     }
   }
 
@@ -52,6 +53,11 @@ export class ViasDependPromise extends ViasPromise {
   }
 
   fulfill(options = {}) {
+    if (this.ready && !this.dependant) {
+      this.fulfilled = true;
+      return this;
+    }
+
     this.pending = true;
 
     if (options.sync) {

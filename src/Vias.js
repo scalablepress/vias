@@ -55,7 +55,7 @@ function fulfilling(props, promiseMap) {
         promiseMap[promise.id] = promise;
       }
 
-      if (!promise.started && promise.id) {
+      if (!promise.started) {
         toFulfill.push(promise);
       }
     }
@@ -69,6 +69,10 @@ function allFulfilled(promiseMap) {
   });
 }
 
+
+// Check if data has consumed
+let consumed = true;
+// Flag to indicate if the first component has mounted
 let firstMounted = false;
 
 // Fulfill everything in props (for server-side)
@@ -78,6 +82,7 @@ function fulfillAll(props, cb) {
 
   function callback(err, result) {
     if (!calledBack) {
+      consumed = false;
       firstMounted = false;
       return cb(err, result);
     }
@@ -104,6 +109,7 @@ function fulfillAll(props, cb) {
   iterate();
 }
 
+
 // Synchrously fulfill every promise for first vias component mount to consume data from server-side
 function syncFulfill(props, promiseMap) {
   for (let key in props) {
@@ -129,7 +135,7 @@ function vias() {
         super(props);
         this.models = {};
         this.promises = {};
-        if (!firstMounted) {
+        if (!firstMounted || !consumed) {
           syncFulfill(props, this.promises);
         }
       }
@@ -162,7 +168,7 @@ function vias() {
           } else {
             this.promises[promise.id] = Object.assign(new ViasPromise(), promise);
           }
-          this.fulfillPromises(this.props);
+          this.fulfillPromises(props);
           if (promise.cacheModel()) {
             this.subscribeModel(promise.cacheModel());
           }
@@ -171,10 +177,11 @@ function vias() {
       }
 
       componentWillMount() {
-        if (firstMounted) {
+        if (firstMounted || consumed) {
           this.fulfillPromises(this.props);
         } else {
           firstMounted = true;
+          consumed = true;
         }
       }
 
