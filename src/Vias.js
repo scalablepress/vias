@@ -168,7 +168,9 @@ function vias() {
           } else {
             this.promises[promise.id] = Object.assign(new ViasPromise(), promise);
           }
-          this.fulfillPromises(props);
+          _.defer(() => {
+            this.fulfillPromises(props);
+          });
           if (promise.cacheModel()) {
             this.subscribeModel(promise.cacheModel());
           }
