@@ -110,6 +110,13 @@ class ViasPromise {
   }
 
   refresh(options) {
+    this.pending = false;
+    this.rejected = false;
+    this.fulfilled = false;
+    this.executed = false;
+    this.reason = null;
+    this.value = null;
+    this.meta = null;
     this.fulfill(_.extend({refresh: true}, options));
   }
 
