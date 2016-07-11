@@ -3,8 +3,15 @@ export {default} from './src/Vias';
 export {default as ViasPromise} from './src/ViasPromise';
 export {default as Model} from './src/Model';
 export {default as Depend} from './src/Depend';
-export {viasPromiseValue, viasPromiseState} from './src/util';
+
 export {viasConnect, viasReducer, ReduxModel} from './src/redux';
+
+export {
+  viasPromiseValue,
+  viasPromiseState,
+  viasPromiseReason,
+} from './src/util';
+
 export {
   MODEL_UPDATED,
   SECOND,

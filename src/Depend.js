@@ -1,4 +1,5 @@
-import _ from 'lodash';
+// import _ from 'lodash';
+import async from 'async';
 
 import Model from './Model';
 import ViasPromise from './ViasPromise';
@@ -8,27 +9,11 @@ export class ViasDependPromise extends ViasPromise {
   constructor(dependModel, dependencies, dependExec) {
     super(dependModel);
     this.dependExec = dependExec;
-    if (dependencies) {
-      this.update(dependencies);
-    }
+    this.dependencies = dependencies;
   }
 
   cacheModel() {
     return this.dependant && this.dependant.model;
-  }
-
-  update(dependencies) {
-    this.dependencies = dependencies || {};
-
-    for (let dependency of _.values(this.dependencies)) {
-      if (!dependency instanceof ViasPromise) {
-        throw new Error('Dependency is not a ViasPromise');
-      }
-      if (!dependency.fulfilled) {
-        return this;
-      }
-    }
-    this._prepareExec();
   }
 
   _computeDependant() {
@@ -41,48 +26,63 @@ export class ViasDependPromise extends ViasPromise {
 
   _prepareExec() {
     this._computeDependant();
-    if (this.dependant) {
-      this.shape = this.dependant.shape;
-      this._exec = this.dependant._exec;
-      this.options = this.dependant.options;
-      this.id = this.dependant.id;
-      return this;
-    } else {
-      this._exec = (options, cb) => cb();
+    if (this.ready) {
+      if (this.dependant) {
+        this.shape = this.dependant.shape;
+        this._exec = this.dependant._exec;
+        this.options = this.dependant.options;
+        this.id = this.dependant.id;
+        return this;
+      } else {
+        this.id = 'noop';
+        this._exec = (options, cb) => cb();
+      }
     }
   }
 
   fulfill(options = {}) {
-    if (this.ready && !this.dependant) {
-      this.fulfilled = true;
-      return this;
-    }
 
-    this.pending = true;
-
-    if (options.sync) {
-      for (let key in this.dependencies) {
-        if (this.dependencies.hasOwnProperty(key)) {
-          let promise = this.dependencies[key];
-          if (!promise.fulfilled) {
-            promise.fulfill({sync: true});
+    if (this.key && this.promiseCache) {
+      let cachedPromise = this.promiseCache[this.key];
+      if (cachedPromise) {
+        let identicalDependency = true;
+        for (let key in this.dependencies) {
+          if (this.dependencies.hasOwnProperty(key)) {
+            let dependency = this.dependencies[key];
+            if (cachedPromise.dependencies[key].id !== dependency.id) {
+              identicalDependency = false;
+              break;
+            }
+          }
+        }
+        if (identicalDependency) {
+          this._prepareExec();
+          if (this.ready) {
+            return super.fulfill(options);
           }
         }
       }
+      this.promiseCache[this.key] = this;
+    }
+
+    this.pending = true;
+    async.forEachOf(this.dependencies, (promise, key, fCb) => {
+      let dependencyOptions = {};
+      if (options.sync) {
+        dependencyOptions.sync = true;
+      }
+      promise.fulfill(dependencyOptions).onFinish(fCb);
+    }, (err) => {
+      if (err) {
+        this.reason = err;
+        this.pending = this.fulfilled = false;
+        this.rejected = true;
+        return this._broadcast();
+      }
       this._prepareExec();
-    }
-
-    if (this.dependant) {
       return super.fulfill(options);
-    }
-
+    });
     return this;
-  }
-
-  onFinish(callback) {
-    if (this._exec) {
-      super.onFinish(callback);
-    }
   }
 }
 

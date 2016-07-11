@@ -41,6 +41,21 @@ export function viasPromiseValue(viasPromises) {
   throw new Error('Invalid parameters');
 }
 
+
+export function viasPromiseReason(viasPromises) {
+  viasPromises = filterViasPromises(viasPromises);
+  if (viasPromises instanceof ViasPromise) {
+    return viasPromises.reason;
+  }
+
+  if (_.isArray(viasPromises) || _.isPlainObject(viasPromises)) {
+    let promise = _.find(viasPromises, promise => promise.reason);
+    return promise && promise.reason;
+  }
+
+  throw new Error('Invalid parameters');
+}
+
 export function viasPromiseState(viasPromises) {
   viasPromises = filterViasPromises(viasPromises);
   if (viasPromises instanceof ViasPromise) {

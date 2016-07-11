@@ -15,9 +15,15 @@ class Model {
     this.methods = methods;
     this.custom = custom;
 
+    this.cachable = Object.keys(aliases).length > 0;
+
     this.get = (alias, key, options) => {
       if (!methods.get) {
         throw new Error('Get method is not implemented');
+      }
+
+      if (!this.cachable) {
+        throw new Error('No alias set up');
       }
 
       let exec = (options = {}, cb) => {
@@ -32,7 +38,7 @@ class Model {
 
         methods.get(alias, key, options, (err, doc) => {
           if (err) {
-            cb(err);
+            return cb(err);
           }
 
           if (!doc) {
@@ -51,6 +57,10 @@ class Model {
     this.bulk = (alias, keys = [], options = {}) => {
       if (!methods.bulk) {
         throw new Error('Bulk method is not implemented');
+      }
+
+      if (!this.cachable) {
+        throw new Error('No alias set up');
       }
 
       let exec = (options = {}, cb) => {
@@ -100,9 +110,12 @@ class Model {
         let {shape, action} = custom[methodName];
         this[methodName] = (data = {}, options = {}) => {
           let exec = (options = {}, cb) => {
-            let resultFromCache = this.getCustomResult(methodName, data, shape, options.expiry || 0, options.sync);
-            if (resultFromCache) {
-              return cb(null, {alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result}, resultFromCache.meta);
+
+            if (this.cachable) {
+              let resultFromCache = this.getCustomResult(methodName, data, shape, options.expiry || 0, options.sync);
+              if (resultFromCache) {
+                return cb(null, {alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result}, resultFromCache.meta);
+              }
             }
 
             if (options.sync) {
@@ -113,25 +126,34 @@ class Model {
               if (err) {
                 return cb(err);
               }
-              let fetchedAt = new Date();
-              let alias = _.first(Object.keys(this.aliases));
-              let aliasPath = this.aliases[alias];
-              let aliasResult;
-              let documentPaths = shape(result);
-              if (!documentPaths) {
-                aliasResult = _.get(result, aliasPath);
-                this.save(result, fetchedAt);
-              } else {
-                aliasResult = _.cloneDeep(result);
-                for (let path of documentPaths) {
-                  let doc = _.get(result, path);
-                  this.save(doc, fetchedAt);
-                  _.set(aliasResult, path, _.get(doc, aliasPath));
+
+              if (this.cachable) {
+
+                let fetchedAt = new Date();
+                let alias = _.first(Object.keys(this.aliases));
+                let aliasPath = this.aliases[alias];
+                let aliasResult;
+                let documentPaths = shape(result);
+                if (!documentPaths) {
+                  aliasResult = _.get(result, aliasPath);
+                  this.save(result, fetchedAt);
+                } else {
+                  aliasResult = _.cloneDeep(result);
+                  for (let path of documentPaths) {
+                    let doc = _.get(result, path);
+                    this.save(doc, fetchedAt);
+                    _.set(aliasResult, path, _.get(doc, aliasPath));
+                  }
                 }
+
+                this.saveCustomResult(methodName, data, alias, aliasResult, meta, fetchedAt);
+                cb(null, {alias, result: aliasResult}, meta);
+                this._broadcast(MODEL_CACHE_UPDATED);
+
+              } else {
+                cb(null, {result}, meta);
               }
-              this.saveCustomResult(methodName, data, alias, aliasResult, meta, fetchedAt);
-              cb(null, {alias, result: aliasResult}, meta);
-              this._broadcast(MODEL_CACHE_UPDATED);
+
             });
           };
           return new ViasPromise(this, methodName, {data}, options, shape, exec);
@@ -140,12 +162,8 @@ class Model {
     }
   }
 
-  customCache() {
-    return this.customResults;
-  }
-
   getCustomResult(method, data, shape, expiry, sync) {
-    let cache = this.customCache();
+    let cache = this.customResults;
     let dataKey = objectHash(data);
     if (cache[method] && cache[method][dataKey]) {
       let expired;
@@ -178,7 +196,7 @@ class Model {
   }
 
   saveCustomResult(method, data, alias, result, meta, fetchedAt) {
-    let cache = this.customCache();
+    let cache = this.customResults;
     let dataKey = objectHash(data);
     if (!cache[method]) {
       cache[method] = {};
@@ -187,12 +205,8 @@ class Model {
     this.customResults = cache;
   }
 
-  cache() {
-    return this.docs;
-  }
-
   getFromCache(alias, key, expiry, sync) {
-    let cache = this.cache();
+    let cache = this.docs;
     if (cache[alias] && cache[alias][key]) {
       let expired;
       if (expiry >= 0 && !sync) {
@@ -209,7 +223,7 @@ class Model {
   }
 
   save(doc, fetchedAt) {
-    let cache = this.cache();
+    let cache = this.docs;
     fetchedAt = fetchedAt || new Date();
     for (let alias in this.aliases) {
       if (this.aliases.hasOwnProperty(alias)) {
