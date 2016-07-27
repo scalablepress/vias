@@ -215,7 +215,7 @@ class Model {
         expired = false;
       }
 
-      if (!expired || process.env.VIAS_ALL_CACHE) {
+      if (!expired) {
         return cache[alias][key].doc;
       }
     }
