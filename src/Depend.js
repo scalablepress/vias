@@ -1,9 +1,10 @@
-// import _ from 'lodash';
 import async from 'async';
 
 import Model from './Model';
 import ViasPromise from './ViasPromise';
 import {viasPromiseValue, viasPromiseState} from './util';
+
+// ViasPromise that depends on other ViasPromise
 
 export class ViasDependPromise extends ViasPromise {
   constructor(dependModel, dependencies, dependExec) {
@@ -34,6 +35,7 @@ export class ViasDependPromise extends ViasPromise {
         this.id = this.dependant.id;
         return this;
       } else {
+        // Do not do anything if all dependencies are ready but the exec function return nothing
         this.id = 'noop';
         this._exec = (options, cb) => cb();
       }
@@ -42,6 +44,10 @@ export class ViasDependPromise extends ViasPromise {
 
   fulfill(options = {}) {
 
+    // Compare promise with the same key stored in the cache
+    // See if all dependencies are the same
+    // If no, fulfill the dependences first, then the actual data request
+    // If yes, the dependences should have already been fulfilled by the cached promise
     if (this.key && this.promiseCache) {
       let cachedPromise = this.promiseCache[this.key];
       if (cachedPromise) {
@@ -86,7 +92,7 @@ export class ViasDependPromise extends ViasPromise {
   }
 }
 
-
+// Speical vias model to handle depend promise
 let Depend = new Model('Depend');
 
 function toRun(dependencies) {

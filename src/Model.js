@@ -15,8 +15,10 @@ class Model {
     this.methods = methods;
     this.custom = custom;
 
+    // Only cache document when at least one alias is available to act as a key
     this.cachable = Object.keys(aliases).length > 0;
 
+    // Get operation, request should return one document
     this.get = (alias, key, options) => {
       if (!methods.get) {
         throw new Error('Get method is not implemented');
@@ -32,6 +34,8 @@ class Model {
           return cb(null, {alias, result: key});
         }
 
+        // Do not fetch from remote if sync options is flagged and nothing can be found in cached
+        // Used for server-side-rendeing and first time data consume for front-end
         if (options.sync) {
           return;
         }
@@ -54,6 +58,7 @@ class Model {
       return new ViasPromise(this, 'get', {alias, key}, options, DOCUMENT_SHAPE, exec);
     };
 
+    // Bulk operation, request should return array of document
     this.bulk = (alias, keys = [], options = {}) => {
       if (!methods.bulk) {
         throw new Error('Bulk method is not implemented');
@@ -105,6 +110,7 @@ class Model {
       return new ViasPromise(this, 'bulk', {alias, keys: keysObj}, options, ARRAY_SHAPE, exec);
     };
 
+    // Custom operation, request can return in any shape the user defined
     for (let methodName in custom) {
       if (custom.hasOwnProperty(methodName)) {
         let {shape, action} = custom[methodName];
@@ -162,6 +168,7 @@ class Model {
     }
   }
 
+  // Get customer operation result from cache
   getCustomResult(method, data, shape, expiry, sync) {
     let cache = this.customResults;
     let dataKey = objectHash(data);
@@ -195,16 +202,20 @@ class Model {
     return null;
   }
 
+  // Save customer operation result to cache
   saveCustomResult(method, data, alias, result, meta, fetchedAt) {
     let cache = this.customResults;
     let dataKey = objectHash(data);
     if (!cache[method]) {
       cache[method] = {};
     }
+    // Only save the alias name and the alias, not the actual document
+    // Document should be populated using the document cache
     cache[method][dataKey] = {alias, result, meta, fetchedAt};
     this.customResults = cache;
   }
 
+  // Get document from cache
   getFromCache(alias, key, expiry, sync) {
     let cache = this.docs;
     if (cache[alias] && cache[alias][key]) {
@@ -222,6 +233,7 @@ class Model {
     return null;
   }
 
+  // Save document to cache
   save(doc, fetchedAt) {
     let cache = this.docs;
     fetchedAt = fetchedAt || new Date();

@@ -4,6 +4,7 @@ import hoistNonReactStatic from 'hoist-non-react-statics';
 
 import {filterViasPromises} from './util';
 
+// Fulfill all ViasPromise in the props
 function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
   let promises = filterViasPromises(props);
   let toFulfill = [];
@@ -34,6 +35,7 @@ let first = true;
 function vias() {
   return function (WrappedComponent) {
     class Vias extends React.Component {
+      // Class method for fulfilling promises on the server
       static fulfillAll(props, cb) {
         // Set server to true
         // allow component to consume data synchronously

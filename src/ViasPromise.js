@@ -1,6 +1,9 @@
 import _ from 'lodash';
 import objectHash from './objectHash';
 
+
+// Synchronous state container for async data request
+
 class ViasPromise {
   constructor(model, method, data, options, shape, exec) {
     this.model = model;
@@ -57,6 +60,7 @@ class ViasPromise {
     return this;
   }
 
+  // Fulfil the data request
   fulfill(options = {}) {
     options = _.merge({}, this.options, options);
     if (options.refresh) {
