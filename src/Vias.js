@@ -23,7 +23,9 @@ function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
       }
       eCb(err);
     });
-  }, cb);
+  }, (err) => {
+    async.setImmediate(() => cb && cb(err));
+  });
 }
 
 // Check if server component is rendered in server side
