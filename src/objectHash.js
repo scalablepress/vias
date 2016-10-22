@@ -2,12 +2,29 @@ import _ from 'lodash';
 
 export default function objectHash(data) {
   if (_.isPlainObject(data)) {
-    return JSON.stringify(_.sortBy(_.pairs(_.mapValues(data, objectHash)), ([key]) => key));
+    let keys = _.keys(data).sort();
+    let rv = '{';
+    for (let key of keys) {
+      let value = objectHash(data[key]);
+      if (!_.isUndefined(value)) {
+        rv += `${JSON.stringify(key)}:${value},`;
+      }
+    }
+    rv = rv.slice(0, rv.length - 1);
+    rv += '}';
+    return rv;
   }
   if (_.isArray(data)) {
-    return JSON.stringify(_.map(data, objectHash));
+    let rv = '[';
+    for (let entry of data) {
+      rv += objectHash(entry);
+      rv += ',';
+    }
+    rv = rv.slice(0, rv.length - 1);
+    rv += ']';
+    return rv;
   }
-  if (_.isString(data)) {
+  if (_.isNumber(data) || _.isUndefined(data)) {
     return data;
   }
   return JSON.stringify(data);
