@@ -7,32 +7,29 @@ import {filterViasPromises} from './util';
 // Fulfill all ViasPromise in the props
 function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
   let promises = filterViasPromises(props);
+  let toAdd = Object.assign({}, promises);
   let count = Object.keys(promises).length;
   let toFulfill = [];
   while (toFulfill.length < count) {
-    for (let key in promises) {
-      if (promises.hasOwnProperty(key)) {
-        let promise = promises[key];
-        if (promise.dependencies) {
-          let dependenciesAdded = true;
-          for (let dependencyKey of Object.keys(promise.dependencies)) {
-            if (!promises[dependencyKey]) {
-              throw `Depency ${dependencyKey} of ${key} is not in props`;
-            }
-            let dependency = promise.dependencies[dependencyKey];
-            if (!dependency.key) {
-              dependenciesAdded = false;
-              break;
-            }
+    for (let [key, promise] in Object.entries(toAdd)) {
+      if (promise.dependencies) {
+        let dependenciesAdded = true;
+        for (let [dependencyKey, dependency] of Object.entries(promise.dependencies)) {
+          if (!promises[dependencyKey]) {
+            throw `Depency ${dependencyKey} of ${key} is not in props`;
           }
-          if (!dependenciesAdded) {
-            continue;
+          if (!dependency.key) {
+            dependenciesAdded = false;
+            break;
           }
         }
-        promise.setKey(key).setPromiseCache(promiseCache);
-        toFulfill.push(promise);
-        delete promises[key];
+        if (!dependenciesAdded) {
+          continue;
+        }
       }
+      promise.setKey(key).setPromiseCache(promiseCache);
+      toFulfill.push(promise);
+      delete toAdd[key];
     }
   }
 
