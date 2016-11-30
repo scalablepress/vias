@@ -102,7 +102,7 @@ class Model {
             resultKeys.push(key);
           }
 
-          cb(null, {alias, result: keys});
+          cb(null, {alias, result: resultKeys});
           this._broadcast(MODEL_CACHE_UPDATED);
         });
       };
