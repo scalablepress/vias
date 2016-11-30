@@ -7,12 +7,29 @@ import {filterViasPromises} from './util';
 // Fulfill all ViasPromise in the props
 function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
   let promises = filterViasPromises(props);
+  let count = Object.keys(promises).length;
   let toFulfill = [];
-  for (let key in promises) {
-    if (promises.hasOwnProperty(key)) {
-      let promise = promises[key];
-      promise.setKey(key).setPromiseCache(promiseCache);
-      toFulfill.push(promise);
+  while (toFulfill.length < count) {
+    for (let key in promises) {
+      if (promises.hasOwnProperty(key)) {
+        let promise = promises[key];
+        if (promise.dependencies) {
+          let dependenciesAdded = true;
+          for (let key of Object.keys(promise.dependencies)) {
+            let dependency = promise.dependencies[key];
+            if (!dependency.key) {
+              dependenciesAdded = false;
+              break;
+            }
+          }
+          if (!dependenciesAdded) {
+            continue;
+          }
+        }
+        promise.setKey(key).setPromiseCache(promiseCache);
+        toFulfill.push(promise);
+        delete promises[key];
+      }
     }
   }
 
