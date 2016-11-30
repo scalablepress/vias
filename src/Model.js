@@ -102,12 +102,7 @@ class Model {
         });
       };
 
-      let keysObj = {};
-      for (let key of keys) {
-        keysObj[key] = true;
-      }
-
-      return new ViasPromise(this, 'bulk', {alias, keys: keysObj}, options, ARRAY_SHAPE, exec);
+      return new ViasPromise(this, 'bulk', {alias, keys: _.uniq(keys).sort()}, options, ARRAY_SHAPE, exec);
     };
 
     // Custom operation, request can return in any shape the user defined
