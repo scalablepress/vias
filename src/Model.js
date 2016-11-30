@@ -71,17 +71,19 @@ class Model {
       let exec = (options = {}, cb) => {
         let keysToGet = [];
         let result = {};
+        let resultKeys = [];
         for (let key of keys) {
           let docFromCache = this.getFromCache(alias, key, options.expiry || 0, options.sync);
           if (docFromCache) {
             result[key] = docFromCache;
+            resultKeys.push(key);
           } else {
             keysToGet.push(key);
           }
         }
 
         if (keysToGet.length === 0) {
-          return cb(null, {alias, result: keys});
+          return cb(null, {alias, result: resultKeys});
         }
 
         if (options.sync) {
@@ -95,6 +97,9 @@ class Model {
           let fetchedAt = new Date();
           for (let doc of remoteResult) {
             this.save(doc, fetchedAt);
+            let path = this.aliases[alias];
+            let key = _.get(doc, path);
+            resultKeys.push(key);
           }
 
           cb(null, {alias, result: keys});
