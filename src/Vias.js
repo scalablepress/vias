@@ -15,8 +15,11 @@ function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
         let promise = promises[key];
         if (promise.dependencies) {
           let dependenciesAdded = true;
-          for (let key of Object.keys(promise.dependencies)) {
-            let dependency = promise.dependencies[key];
+          for (let dependencyKey of Object.keys(promise.dependencies)) {
+            if (!promises[dependencyKey]) {
+              throw `Depency ${dependencyKey} of ${key} is not in props`;
+            }
+            let dependency = promise.dependencies[dependencyKey];
             if (!dependency.key) {
               dependenciesAdded = false;
               break;
