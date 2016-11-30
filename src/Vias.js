@@ -11,7 +11,7 @@ function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
   let count = Object.keys(promises).length;
   let toFulfill = [];
   while (toFulfill.length < count) {
-    for (let [key, promise] in Object.entries(toAdd)) {
+    for (let [key, promise] of Object.entries(toAdd)) {
       if (promise.dependencies) {
         let dependenciesAdded = true;
         for (let [dependencyKey, dependency] of Object.entries(promise.dependencies)) {
