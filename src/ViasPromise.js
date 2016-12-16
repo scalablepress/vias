@@ -1,5 +1,5 @@
-import _ from 'lodash';
 import objectHash from './objectHash';
+import {pathValue, setValueByPath, clone} from './util';
 
 
 // Synchronous state container for async data request
@@ -39,12 +39,12 @@ class ViasPromise {
 
     let aliasPaths = this.shape(result);
     if (!aliasPaths) {
-      return cacheModel.getFromCache(alias, result);
+      return cacheModel.fromCache(alias, result);
     } else {
-      let populated = _.cloneDeep(result);
+      let populated = clone(result);
       for (let path of aliasPaths) {
-        let key = _.get(result, path);
-        _.set(populated, path, cacheModel.getFromCache(alias, key));
+        let key = pathValue(result, path);
+        setValueByPath(populated, path, cacheModel.fromCache(alias, key));
       }
       return populated;
     }
@@ -62,7 +62,7 @@ class ViasPromise {
 
   // Fulfil the data request
   fulfill(options = {}) {
-    options = _.merge({}, this.options, options);
+    options = Object.assign({}, this.options, options);
     if (options.refresh) {
       options.expiry = 0;
     }
@@ -81,33 +81,36 @@ class ViasPromise {
       }
     }
 
+    // Do not fulfill promise marked executed
     if (this.executed) {
       return this;
     }
 
     this.pending = true;
 
-    if (!options.sync) {
-      this.executed = true;
-      if (this.key && this.promiseCache) {
-        let cachedPromise = this.promiseCache[this.key];
-        cachedPromise.executed = true;
-      }
+    // Mark promise executed so it won't get fulfill again
+    this.executed = true;
+    if (this.key && this.promiseCache) {
+      let cachedPromise = this.promiseCache[this.key];
+      cachedPromise.executed = true;
     }
-
     this._exec(options, (err, result, meta) => {
-      this.executed = true;
       if (err) {
         this.reason = err;
         this.pending = this.fulfilled = false;
         this.rejected = true;
         return this._broadcast();
       }
-      this.value = result;
-      this.meta = meta;
-      this.pending = this.rejected = false;
-      this.fulfilled = true;
-      this._broadcast();
+      if (result) {
+        this.value = result;
+        this.meta = meta;
+        this.pending = this.rejected = false;
+        this.fulfilled = true;
+        this._broadcast();
+      } else if (options.sync) {
+        // Allow next fulfillment to pick this up again
+        this.executed = false;
+      }
     });
 
     return this;
@@ -121,7 +124,7 @@ class ViasPromise {
     this.reason = null;
     this.value = null;
     this.meta = null;
-    this.fulfill(_.extend({refresh: true}, options));
+    this.fulfill(Object.assign({refresh: true}, options));
   }
 
   _broadcast() {

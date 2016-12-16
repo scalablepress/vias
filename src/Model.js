@@ -1,8 +1,7 @@
-import _ from 'lodash';
 import objectHash from './objectHash';
-
 import {MODEL_CACHE_UPDATED, DOCUMENT_SHAPE, ARRAY_SHAPE} from './constants';
 import ViasPromise from './ViasPromise';
+import {isUndefined, pathValue, setValueByPath, clone} from './util';
 
 class Model {
   constructor(name, aliases = {}, methods = {}, custom = {}) {
@@ -29,7 +28,7 @@ class Model {
       }
 
       let exec = (options = {}, cb) => {
-        let docFromCache = this.getFromCache(alias, key, options.expiry || 0, options.sync);
+        let docFromCache = this.fromCache(alias, key, options.expiry || 0, options.sync);
         if (docFromCache) {
           return cb(null, {alias, result: key});
         }
@@ -37,7 +36,7 @@ class Model {
         // Do not fetch from remote if sync options is flagged and nothing can be found in cached
         // Used for server-side-rendeing and first time data consume for front-end
         if (options.sync) {
-          return;
+          return cb();
         }
 
         methods.get(alias, key, options, (err, doc) => {
@@ -46,7 +45,7 @@ class Model {
           }
 
           if (!doc) {
-            return cb('Cannot find document');
+            return cb(null, {alias});
           }
 
           this.save(doc, new Date());
@@ -73,7 +72,7 @@ class Model {
         let result = {};
         let resultKeys = [];
         for (let key of keys) {
-          let docFromCache = this.getFromCache(alias, key, options.expiry || 0, options.sync);
+          let docFromCache = this.fromCache(alias, key, options.expiry || 0, options.sync);
           if (docFromCache) {
             result[key] = docFromCache;
             resultKeys.push(key);
@@ -87,7 +86,7 @@ class Model {
         }
 
         if (options.sync) {
-          return;
+          return cb();
         }
 
         methods.bulk(alias, keysToGet, options, (err, remoteResult) => {
@@ -98,7 +97,7 @@ class Model {
           for (let doc of remoteResult) {
             this.save(doc, fetchedAt);
             let path = this.aliases[alias];
-            let key = _.get(doc, path);
+            let key = pathValue(doc, path);
             resultKeys.push(key);
           }
 
@@ -107,7 +106,12 @@ class Model {
         });
       };
 
-      return new ViasPromise(this, 'bulk', {alias, keys: _.uniq(keys).sort()}, options, ARRAY_SHAPE, exec);
+      let keysObj = {};
+      for (let key of keys) {
+        keysObj[key] = true;
+      }
+
+      return new ViasPromise(this, 'bulk', {alias, keys: Object.keys(keysObj).sort()}, options, ARRAY_SHAPE, exec);
     };
 
     // Custom operation, request can return in any shape the user defined
@@ -118,14 +122,14 @@ class Model {
           let exec = (options = {}, cb) => {
 
             if (this.cachable) {
-              let resultFromCache = this.getCustomResult(methodName, data, shape, options.expiry || 0, options.sync);
+              let resultFromCache = this.customResult(methodName, data, shape, options.expiry || 0, options.sync);
               if (resultFromCache) {
                 return cb(null, {alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result}, resultFromCache.meta);
               }
             }
 
             if (options.sync) {
-              return;
+              return cb();
             }
 
             action(data, options, (err, result, meta) => {
@@ -136,19 +140,19 @@ class Model {
               if (this.cachable) {
 
                 let fetchedAt = new Date();
-                let alias = _.first(Object.keys(this.aliases));
+                let alias = Object.keys(this.aliases)[0];
                 let aliasPath = this.aliases[alias];
                 let aliasResult;
                 let documentPaths = shape(result);
                 if (!documentPaths) {
-                  aliasResult = _.get(result, aliasPath);
+                  aliasResult = pathValue(result, aliasPath);
                   this.save(result, fetchedAt);
                 } else {
-                  aliasResult = _.cloneDeep(result);
+                  aliasResult = clone(result);
                   for (let path of documentPaths) {
-                    let doc = _.get(result, path);
+                    let doc = pathValue(result, path);
                     this.save(doc, fetchedAt);
-                    _.set(aliasResult, path, _.get(doc, aliasPath));
+                    setValueByPath(aliasResult, path, pathValue(doc, aliasPath));
                   }
                 }
 
@@ -169,7 +173,7 @@ class Model {
   }
 
   // Get customer operation result from cache
-  getCustomResult(method, data, shape, expiry, sync) {
+  customResult(method, data, shape, expiry, sync) {
     let cache = this.customResults;
     let dataKey = objectHash(data);
     if (cache[method] && cache[method][dataKey]) {
@@ -185,13 +189,13 @@ class Model {
         // Refetch if any record passed the expiry
         let aliasPaths = shape(cacheRecord.result);
         if (!aliasPaths) {
-          if (!this.getFromCache(cacheRecord.alias, cacheRecord.result, expiry, sync)) {
+          if (!this.fromCache(cacheRecord.alias, cacheRecord.result, expiry, sync)) {
             return null;
           }
         } else {
           for (let path of aliasPaths) {
-            let key = _.get(cacheRecord.result, path);
-            if (!this.getFromCache(cacheRecord.alias, key, expiry, sync)) {
+            let key = pathValue(cacheRecord.result, path);
+            if (!this.fromCache(cacheRecord.alias, key, expiry, sync)) {
               return null;
             }
           }
@@ -216,7 +220,7 @@ class Model {
   }
 
   // Get document from cache
-  getFromCache(alias, key, expiry, sync) {
+  fromCache(alias, key, expiry, sync) {
     let cache = this.docs;
     if (cache[alias] && cache[alias][key]) {
       let expired;
@@ -240,8 +244,8 @@ class Model {
     for (let alias in this.aliases) {
       if (this.aliases.hasOwnProperty(alias)) {
         let path = this.aliases[alias];
-        let key = _.get(doc, path);
-        if (!_.isUndefined(key)) {
+        let key = pathValue(doc, path);
+        if (!isUndefined(key)) {
           if (!cache[alias]) {
             cache[alias] = {};
           }

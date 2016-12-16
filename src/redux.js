@@ -1,8 +1,8 @@
-import _ from 'lodash';
 import Model from './Model';
 import Depend from './Depend';
+import {clone} from './util';
 
-const INIT_MODELS = 'VIAS_INIT_MODELS';
+const INIT_MODELS = 'VIAS/INIT_MODELS';
 
 function initModels(models) {
   return {
@@ -11,7 +11,7 @@ function initModels(models) {
   };
 }
 
-const MODEL_UPDATE = 'VIAS_MODEL_UPDATE';
+const MODEL_UPDATE = 'VIAS/MODEL_UPDATE';
 
 function updateModel(model, event) {
   return {
@@ -74,12 +74,12 @@ export class ReduxModel extends Model {
   }
 
   snapshot() {
-    return Object.assign({}, this, {docs: _.cloneDeep(this.docs), customResults: _.cloneDeep(this.customResults)});
+    return Object.assign({}, this, {docs: clone(this.docs), customResults: clone(this.customResults)});
   }
 }
 
 export function viasConnect(store, ...models) {
   models.push(Depend);
-  let reduxModels = _.map(models, (model) => ReduxModel.connect(store, model));
+  let reduxModels = models.map((model) => ReduxModel.connect(store, model));
   store.dispatch(initModels(reduxModels));
 }

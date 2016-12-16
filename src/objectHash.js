@@ -1,12 +1,12 @@
-import _ from 'lodash';
+import {isUndefined, isPlainObject} from './util';
 
 export default function objectHash(data) {
-  if (_.isPlainObject(data)) {
-    let keys = _.keys(data).sort();
+  if (isPlainObject(data)) {
+    let keys = Object.keys(data).sort();
     let rv = '{';
     for (let key of keys) {
       let value = objectHash(data[key]);
-      if (!_.isUndefined(value)) {
+      if (!isUndefined(value)) {
         rv += `${JSON.stringify(key)}:${value},`;
       }
     }
@@ -14,7 +14,7 @@ export default function objectHash(data) {
     rv += '}';
     return rv;
   }
-  if (_.isArray(data)) {
+  if (Array.isArray(data)) {
     let rv = '[';
     for (let entry of data) {
       rv += objectHash(entry);
@@ -24,7 +24,7 @@ export default function objectHash(data) {
     rv += ']';
     return rv;
   }
-  if (_.isNumber(data) || _.isUndefined(data)) {
+  if (typeof data === 'number' || isUndefined(data)) {
     return data;
   }
   return JSON.stringify(data);

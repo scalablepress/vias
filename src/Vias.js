@@ -1,8 +1,7 @@
-import async from 'async';
 import React from 'react';
 import hoistNonReactStatic from 'hoist-non-react-statics';
 
-import {filterViasPromises} from './util';
+import {filterViasPromises, asyncEachOf, _setImmediate} from './util';
 
 // Fulfill all ViasPromise in the props
 function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
@@ -33,7 +32,7 @@ function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
     }
   }
 
-  async.each(toFulfill, (promise, eCb) => {
+  asyncEachOf(toFulfill, (promise, index, eCb) => {
     promise.fulfill(options).onFinish((err) => {
       if (promiseCb) {
         promiseCb(err, promise);
@@ -41,7 +40,7 @@ function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
       eCb(err);
     });
   }, (err) => {
-    async.setImmediate(() => cb && cb(err));
+    _setImmediate(() => cb && cb(err));
   });
 }
 

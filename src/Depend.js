@@ -1,8 +1,6 @@
-import async from 'async';
-
 import Model from './Model';
 import ViasPromise from './ViasPromise';
-import {viasPromiseValue, viasPromiseState} from './util';
+import {viasPromiseValue, viasPromiseState, asyncEachOf} from './util';
 
 // ViasPromise that depends on other ViasPromise
 
@@ -72,12 +70,14 @@ export class ViasDependPromise extends ViasPromise {
     }
 
     this.pending = true;
-    async.forEachOf(this.dependencies, (promise, key, fCb) => {
+    asyncEachOf(this.dependencies, (promise, key, fCb) => {
       let dependencyOptions = {};
       if (options.sync) {
         dependencyOptions.sync = true;
       }
-      promise.fulfill(dependencyOptions).onFinish(fCb);
+      promise.fulfill(dependencyOptions).onFinish((err) => {
+        return fCb(err);
+      });
     }, (err) => {
       if (err) {
         this.reason = err;
