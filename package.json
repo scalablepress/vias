@@ -7,7 +7,9 @@
     "build:lib": "babel src --out-dir lib",
     "build:umd": "NODE_ENV=development webpack --json src/index.js dist/vias.js",
     "build:umd:min": "NODE_ENV=production webpack src/index.js dist/vias.min.js",
-    "build": "npm run build:lib && npm run build:umd && npm run build:umd:min"
+    "build": "npm run build:lib && npm run build:umd && npm run build:umd:min",
+    "clean": "rimraf lib dist",
+    "prepublish": "npm run clean && npm run build"
   },
   "main": "lib/index.js",
   "repository": {
@@ -36,7 +38,8 @@
     "babel-plugin-transform-es2015-spread": "^6.3.13",
     "babel-plugin-transform-es2015-template-literals": "^6.3.13",
     "babel-loader": "^6.2.8",
-    "react": "^0.14"
+    "react": "^0.14",
+    "rimraf": "^2.3.4"
   },
   "peerDependencies": {
     "react": "^0.14"
