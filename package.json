@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:lib": "babel src --out-dir lib",
-    "build:umd": "NODE_ENV=development webpack --json src/index.js dist/vias.js",
+    "build:umd": "NODE_ENV=development webpack src/index.js dist/vias.js",
     "build:umd:min": "NODE_ENV=production webpack src/index.js dist/vias.min.js",
     "build": "npm run build:lib && npm run build:umd && npm run build:umd:min",
     "clean": "rimraf lib dist",
