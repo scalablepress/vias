@@ -16,7 +16,6 @@ export function asyncEachOf(collection, handler, finalCallback) {
   let finish = 0;
   function callback(err) {
     finish++;
-    console.log('for each of', finish, size);
     if (err) {
       return cb(err);
     }
