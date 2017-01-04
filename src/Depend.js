@@ -48,7 +48,7 @@ export class ViasDependPromise extends ViasPromise {
     // If yes, the dependences should have already been fulfilled by the cached promise
     if (this.key && this.promiseCache) {
       let cachedPromise = this.promiseCache[this.key];
-      if (cachedPromise) {
+      if (cachedPromise && cachedPromise instanceof ViasDependPromise) {
         let identicalDependency = true;
         for (let key in this.dependencies) {
           if (this.dependencies.hasOwnProperty(key)) {
