@@ -45,7 +45,7 @@ function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
 }
 
 // Check if server component is rendered in server side
-let server = false;
+let server = typeof window === 'undefined';
 
 // Flag to indicate if the first component has mounted
 let first = true;
@@ -55,9 +55,7 @@ function vias() {
     class Vias extends React.Component {
       // Class method for fulfilling promises on the server
       static fulfillAll(props, cb) {
-        // Set server to true
         // allow component to consume data synchronously
-        server = true;
         fulfillPromises(props, {}, {}, null, cb);
       }
 
