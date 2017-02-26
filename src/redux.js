@@ -25,6 +25,7 @@ const reduceHandlers = {
   [INIT_MODELS]: function (state, {models}) {
     let newState = Object.assign({}, state);
     for (let model of models) {
+      // If model already exists in redux(state sent from server), keep its cache
       if (newState[model.name]) {
         newState[model.name] = Object.assign(model, {
           docs: newState[model.name].docs,
@@ -70,10 +71,12 @@ export class ReduxModel extends Model {
   }
 
   _broadcast(event) {
+    // When promises get resolved/update, dispatch a redux action and update the state
     this.storeDispatch(updateModel(this, event));
   }
 
   snapshot() {
+    // Get new copy of the model for new redux state
     return Object.assign({}, this, {docs: clone(this.docs), customResults: clone(this.customResults)});
   }
 }

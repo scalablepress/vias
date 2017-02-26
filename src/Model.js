@@ -6,6 +6,7 @@ import {isUndefined, pathValue, setValueByPath, clone} from './util';
 class Model {
   constructor(name, aliases = {}, methods = {}, custom = {}) {
     this.name = name;
+    // Cache: alias name -> alias key -> document
     this.docs = {};
     this.aliases = aliases;
     this.listeners = [];
@@ -71,6 +72,8 @@ class Model {
         let keysToGet = [];
         let result = {};
         let resultKeys = [];
+        // Get available document from cache
+        // Only get unavailable doc from remote
         for (let key of keys) {
           let docFromCache = this.fromCache(alias, key, options.expiry || 0, options.sync);
           if (docFromCache) {
@@ -117,11 +120,15 @@ class Model {
     // Custom operation, request can return in any shape the user defined
     for (let methodName in custom) {
       if (custom.hasOwnProperty(methodName)) {
+        // Shape is function that take remote result and output path(s) to actual doc, return null if result is a single doc
+        // Example: {a: doc1, b: doc2, c: {d: doc3}} -> ['a', 'b', 'c.d'] OR doc -> null
+        // Action is the actual resolver
         let {shape, action} = custom[methodName];
         this[methodName] = (data = {}, options = {}) => {
           let exec = (options = {}, cb) => {
 
             if (this.cachable) {
+              // Try to get from cache first
               let resultFromCache = this.customResult(methodName, data, shape, options.expiry || 0, options.sync);
               if (resultFromCache) {
                 return cb(null, {alias: resultFromCache.alias, key: resultFromCache.key, result: resultFromCache.result}, resultFromCache.meta);
@@ -172,9 +179,10 @@ class Model {
     }
   }
 
-  // Get customer operation result from cache
+  // Get customer method result from cache
   customResult(method, data, shape, expiry, sync) {
     let cache = this.customResults;
+    // Use stable JSON stringify as cacheKey
     let dataKey = objectHash(data);
     if (cache[method] && cache[method][dataKey]) {
       let expired;
@@ -186,7 +194,7 @@ class Model {
       }
 
       if (!expired) {
-        // Refetch if any record passed the expiry
+        // Refetch if any document passed the expiry
         let aliasPaths = shape(cacheRecord.result);
         if (!aliasPaths) {
           if (!this.fromCache(cacheRecord.alias, cacheRecord.result, expiry, sync)) {
@@ -206,7 +214,7 @@ class Model {
     return null;
   }
 
-  // Save customer operation result to cache
+  // Save custom method result to cache
   saveCustomResult(method, data, alias, result, meta, fetchedAt) {
     let cache = this.customResults;
     let dataKey = objectHash(data);
@@ -241,6 +249,7 @@ class Model {
   save(doc, fetchedAt) {
     let cache = this.docs;
     fetchedAt = fetchedAt || new Date();
+    // Cache is indexed by every aliases defined
     for (let alias in this.aliases) {
       if (this.aliases.hasOwnProperty(alias)) {
         let path = this.aliases[alias];
@@ -255,9 +264,9 @@ class Model {
         }
       }
     }
-    this.docs = cache;
   }
 
+  // Boradcasting for promise when resolved/updated
   _broadcast(event) {
     for (let listener of this.listeners) {
       setTimeout(function () {

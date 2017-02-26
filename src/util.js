@@ -1,6 +1,8 @@
+// Copied/modified util functions from async or lodash to reduce dependencies
 import ViasPromise from './ViasPromise';
 import _ from 'lodash';
 
+// Simplified version of async.eachOf
 export function asyncEachOf(collection, handler, finalCallback) {
   let called = false;
   function cb(err) {
@@ -77,6 +79,7 @@ function toPath(string) {
   return result;
 }
 
+// _.get
 export function pathValue(object, pathStr) {
   let path = toPath(pathStr);
   let obj = object;
@@ -89,6 +92,7 @@ export function pathValue(object, pathStr) {
   return obj;
 }
 
+// _.set
 export function setValueByPath(object, pathStr, value) {
   let path = toPath(pathStr);
   let obj = object;
@@ -102,6 +106,7 @@ export function setValueByPath(object, pathStr, value) {
   obj[lastPath] = value;
 }
 
+// Very hard to reimplement/copy cloneDeep
 export function clone(toClone) {
   return _.cloneDeep(toClone);
   // return JSON.parse(JSON.stringify(toClone));

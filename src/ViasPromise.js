@@ -7,17 +7,22 @@ import {pathValue, setValueByPath, clone} from './util';
 class ViasPromise {
   constructor(model, method, data, options, shape, exec) {
     this.model = model;
+    // Method name
     this.method = method;
+    // Data params to resolve this promise
     this.data = data;
     this.options = options;
+    // Result shape function
     this.shape = shape;
     this._exec = exec;
+    // Do not mark promise to be pending until it start fulfilling
     this.pending = false;
     this.fulfilled = false;
     this.rejected = false;
     this.callbacks = [];
     this.createdAt = new Date();
     if (method && data) {
+      // Hash of this promise to easier comparing
       this.id = `${this.model.name}_${this.method}_${objectHash(this.data)}`;
     }
   }
@@ -68,6 +73,7 @@ class ViasPromise {
     }
     if (this.key && this.promiseCache) {
       let cachedPromise = this.promiseCache[this.key];
+      // Copy cached promise to this new promise
       if (!options.refresh && cachedPromise && cachedPromise.id === this.id) {
         this.pending = cachedPromise.pending;
         this.rejected = cachedPromise.rejected;
@@ -88,7 +94,7 @@ class ViasPromise {
 
     this.pending = true;
 
-    // Mark promise executed so it won't get fulfill again
+    // Mark promise executed so request won't get fulfill again
     this.executed = true;
     if (this.key && this.promiseCache) {
       let cachedPromise = this.promiseCache[this.key];
@@ -108,7 +114,7 @@ class ViasPromise {
         this.fulfilled = true;
         this._broadcast();
       } else if (options.sync) {
-        // Allow next fulfillment to pick this up again
+        // Synchronous fulfillment can be fulfill again in case document is not in the cache
         this.executed = false;
       }
     });
@@ -116,6 +122,7 @@ class ViasPromise {
     return this;
   }
 
+  // Re-fulfill promise
   refresh(options) {
     this.pending = false;
     this.rejected = false;

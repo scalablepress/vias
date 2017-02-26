@@ -7,18 +7,22 @@ import {viasPromiseValue, viasPromiseState, asyncEachOf} from './util';
 export class ViasDependPromise extends ViasPromise {
   constructor(dependModel, dependencies, dependExec) {
     super(dependModel);
-    this.dependExec = dependExec;
     this.dependencies = dependencies;
+    // Function to execute after all the dependencies are ready
+    this.dependExec = dependExec;
   }
 
   cacheModel() {
+    // The actual model after all the dependencies are ready
     return this.dependant && this.dependant.model;
   }
 
   _computeDependant() {
     if (viasPromiseState(this.dependencies).fulfilled) {
       let dependencyValues = viasPromiseValue(this.dependencies);
+      // Final promise to resolve
       this.dependant = this.dependExec(dependencyValues);
+      // Mark every dependenices are ready
       this.ready = true;
     }
   }
@@ -27,6 +31,7 @@ export class ViasDependPromise extends ViasPromise {
     this._computeDependant();
     if (this.ready) {
       if (this.dependant) {
+        // Copy final promise attr to itself
         this.shape = this.dependant.shape;
         this._exec = this.dependant._exec;
         this.options = this.dependant.options;
@@ -44,8 +49,7 @@ export class ViasDependPromise extends ViasPromise {
 
     // Compare promise with the same key stored in the cache
     // See if all dependencies are the same
-    // If no, fulfill the dependences first, then the actual data request
-    // If yes, the dependences should have already been fulfilled by the cached promise
+    // If no, fulfill the dependences first
     if (this.key && this.promiseCache) {
       let cachedPromise = this.promiseCache[this.key];
       if (cachedPromise && cachedPromise instanceof ViasDependPromise) {
@@ -60,6 +64,7 @@ export class ViasDependPromise extends ViasPromise {
           }
         }
         if (identicalDependency) {
+          // Dependencies did not changed, they are fulfilled last time, check if it is ready and fulfill the final promise
           this._prepareExec();
           if (this.ready) {
             return super.fulfill(options);
@@ -69,6 +74,7 @@ export class ViasDependPromise extends ViasPromise {
       this.promiseCache[this.key] = this;
     }
 
+    // Fulfill dependencies first
     this.pending = true;
     asyncEachOf(this.dependencies, (promise, key, fCb) => {
       let dependencyOptions = {};

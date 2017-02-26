@@ -1,5 +1,6 @@
 import {isUndefined, isPlainObject} from './util';
 
+// Stable json stringify that the keys are sorted
 export default function objectHash(data) {
   if (isPlainObject(data)) {
     let keys = Object.keys(data).sort();

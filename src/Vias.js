@@ -9,6 +9,7 @@ function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
   let toAdd = Object.assign({}, promises);
   let count = Object.keys(promises).length;
   let toFulfill = [];
+  // Put promise in order so that promises with dependencies will be fulfilled after their dependencies
   while (toFulfill.length < count) {
     for (let [key, promise] of Object.entries(toAdd)) {
       if (promise.dependencies) {
@@ -62,6 +63,7 @@ function vias() {
       constructor(props) {
         super(props);
         this.models = {};
+        // Promise cache to prevent promise with same data fulfill twice
         this.promises = {};
         // Try to consume the data synchronously
         // for server side rendered component
@@ -71,16 +73,16 @@ function vias() {
         }
       }
 
-      subscribeModel(model) {
-        if (!this.models[model.name]) {
-          this.models[model.name] = {
-            model: model,
-            listener: () => {
-              this.forceUpdate();
-            },
-          };
-        }
-      }
+      // subscribeModel(model) {
+      //   if (!this.models[model.name]) {
+      //     this.models[model.name] = {
+      //       model: model,
+      //       listener: () => {
+      //         this.forceUpdate();
+      //       },
+      //     };
+      //   }
+      // }
 
       fulfillPromises(props) {
         fulfillPromises(props, this.promises, {}, () => {
@@ -103,14 +105,14 @@ function vias() {
         return React.createElement(WrappedComponent, this.props);
       }
 
-      componentWillUnmount() {
-        for (let name in this.models) {
-          if (this.models.hasOwnProperty(name)) {
-            let {model, listener} = this.models[name];
-            model.unsubscribe(listener);
-          }
-        }
-      }
+      // componentWillUnmount() {
+      //   for (let name in this.models) {
+      //     if (this.models.hasOwnProperty(name)) {
+      //       let {model, listener} = this.models[name];
+      //       model.unsubscribe(listener);
+      //     }
+      //   }
+      // }
     }
     return hoistNonReactStatic(Vias, WrappedComponent);
   };
