@@ -107,7 +107,7 @@ class ViasPromise {
         this.rejected = true;
         return this._broadcast();
       }
-      if (result) {
+      if (result || this.id === 'noop') {
         this.value = result;
         this.meta = meta;
         this.pending = this.rejected = false;
