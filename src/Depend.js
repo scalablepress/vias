@@ -21,7 +21,7 @@ export class ViasDependPromise extends ViasPromise {
     if (viasPromiseState(this.dependencies).fulfilled) {
       let dependencyValues = viasPromiseValue(this.dependencies);
       // Final promise to resolve
-      this.dependant = this.dependExec(dependencyValues);
+      this.dependant = this.dependExec(dependencyValues, this.dependencies);
       // Mark every dependenices are ready
       this.ready = true;
     }
