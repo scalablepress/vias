@@ -83,6 +83,11 @@ class ViasPromise {
         this.value = cachedPromise.value;
         this.meta = cachedPromise.meta;
       } else {
+        if (cachedPromise && cachedPromise instanceof ViasPromise) {
+          this.reason = cachedPromise.reason;
+          this.value = cachedPromise.value;
+          this.meta = cachedPromise.meta;
+        }
         this.promiseCache[this.key] = this;
       }
     }

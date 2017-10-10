@@ -71,6 +71,11 @@ export class ViasDependPromise extends ViasPromise {
           }
         }
       }
+      if (cachedPromise && cachedPromise instanceof ViasDependPromise) {
+        this.reason = cachedPromise.reason;
+        this.value = cachedPromise.value;
+        this.meta = cachedPromise.meta;
+      }
       this.promiseCache[this.key] = this;
     }
 
