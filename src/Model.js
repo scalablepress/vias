@@ -49,6 +49,10 @@ class Model {
             return cb(null, {alias});
           }
 
+          if (key !== doc[this.aliases[alias]]) {
+            throw new Error(`Document received has inconsistent value for path ${this.aliases[alias]}, expect ${key} but got ${doc[this.aliases[alias]]}`);
+          }
+
           this.save(doc, new Date());
           cb(null, {alias, result: key});
           this._broadcast(MODEL_CACHE_UPDATED);
@@ -260,7 +264,7 @@ class Model {
           }
           cache[alias][key] = {fetchedAt, doc};
         } else {
-          throw new Error('Alias field is not defined');
+          throw new Error(`Alias field ${path} for ${this.name} is not defined`);
         }
       }
     }
