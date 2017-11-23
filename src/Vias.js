@@ -94,7 +94,9 @@ function vias() {
         if (!server) {
           this.fulfillPromises(this.props);
         }
-        first = false;
+        _setImmediate(() => {
+          first = false;
+        });
       }
 
       componentWillReceiveProps(nextProps) {
