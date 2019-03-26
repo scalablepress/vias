@@ -104,7 +104,15 @@ function vias() {
       }
 
       render() {
-        return React.createElement(WrappedComponent, this.props);
+        const props = Object.assign({}, this.props);
+
+        for (const [key, promise] of Object.entries(this.promises)) {
+          if (props[key].id === promise.id) {
+            props[key] = promise;
+          }
+        }
+
+        return React.createElement(WrappedComponent, props);
       }
 
       // componentWillUnmount() {
