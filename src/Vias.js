@@ -107,7 +107,7 @@ function vias() {
         const props = Object.assign({}, this.props);
 
         for (const [key, promise] of Object.entries(this.promises)) {
-          if (props[key].id === promise.id) {
+          if (props[key] && (props[key].id === promise.id)) {
             props[key] = promise;
           }
         }
