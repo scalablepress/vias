@@ -108,7 +108,13 @@ function vias() {
 
         for (const [key, promise] of Object.entries(this.promises)) {
           if (props[key] && (props[key].id === promise.id)) {
-            props[key] = promise;
+            props[key].pending = promise.pending;
+            props[key].rejected = promise.rejected;
+            props[key].fulfilled = promise.fulfilled;
+            props[key].executed = promise.executed;
+            props[key].reason = promise.reason;
+            props[key].value = promise.value;
+            props[key].meta = promise.meta;
           }
         }
 
