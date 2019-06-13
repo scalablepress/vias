@@ -143,6 +143,12 @@ class Model {
               return cb();
             }
 
+            if (options.resolve) {
+              action = (__, ___, cb) => {
+                return cb(null, options.resolve.result, options.resolve.meta);
+              }
+            }
+
             action(data, options, (err, result, meta) => {
               if (err) {
                 return cb(err);
@@ -177,8 +183,13 @@ class Model {
 
             });
           };
+
+
           return new ViasPromise(this, methodName, {data}, options, shape, exec);
         };
+        this[methodName].resolve = (data, result, meta) => {
+          this[methodName](data, {resolve: { result, meta }})
+        }
       }
     }
   }
