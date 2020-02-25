@@ -33,14 +33,16 @@ function fulfillPromises(props, promiseCache, options = {}, promiseCb, cb) {
     }
   }
 
+  let err = null;
   asyncEachOf(toFulfill, (promise, index, eCb) => {
-    promise.fulfill(options).onFinish((err) => {
+    promise.fulfill(options).onFinish((_err) => {
       if (promiseCb) {
-        promiseCb(err, promise);
+        promiseCb(_err, promise);
       }
-      eCb(err);
+      if (_err && !err) err = _err;
+      eCb();
     });
-  }, (err) => {
+  }, () => {
     _setImmediate(() => cb && cb(err));
   });
 }
