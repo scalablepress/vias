@@ -42,12 +42,12 @@
     "rimraf": "^2.3.4"
   },
   "peerDependencies": {
-    "react": "^0.14"
+    "react": "^0.14",
+    "lodash": "^4.17.21"
   },
   "author": "Scalable Press",
   "dependencies": {
-    "hoist-non-react-statics": "^1.1.0",
-    "lodash": "^4.17.21"
+    "hoist-non-react-statics": "^1.1.0"
   },
   "homepage": "https://github.com/scalablepress/vias#readme"
 }
