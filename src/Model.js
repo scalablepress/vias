@@ -50,7 +50,7 @@ class Model {
           }
 
           if (key !== doc[this.aliases[alias]]) {
-            throw new Error(`Document received has inconsistent value for path ${this.aliases[alias]}, expect ${key} but got ${doc[this.aliases[alias]]}`);
+            throw new Error(`Document received has inconsistent value for path ${this.aliases[alias]}, expect ${key} but got ${doc[this.aliases[alias]]}. Model name: ${this.name}, alias: ${JSON.stringify(this.aliases[alias])}`);
           }
 
           this.save(doc, new Date());
